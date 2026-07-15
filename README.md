@@ -23,10 +23,4 @@ Build a production-minded flagship AI project while learning LangGraph through e
 - Mock appointment booking, cancellation, and rescheduling
 - Human escalation routing
 
-## Development Approach
 
-The project is developed incrementally, one approved phase at a time. Each phase is implemented, verified, and committed separately.
-
-## Current Status
-
-Repository initialized. Application implementation has not started.
