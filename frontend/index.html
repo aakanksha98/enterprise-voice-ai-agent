@@ -32,7 +32,7 @@
         <div class="topbar-actions">
           <span class="system-status">
             <span class="status-dot" aria-hidden="true"></span>
-            Interface ready
+            Demo ready
           </span>
           <button class="button button--secondary" type="button" data-reset>
             Reset conversation
@@ -47,12 +47,39 @@
             <h2 id="session-title">Session</h2>
           </div>
 
+          <form class="profile-form" data-profile-form>
+            <div class="field-group">
+              <label for="business-type">Business type</label>
+              <select id="business-type" name="business_type" data-business-type>
+                <option value="dental">Dental Clinic</option>
+                <option value="salon">Salon</option>
+                <option value="auto_repair">Auto Repair Shop</option>
+              </select>
+            </div>
+
+            <div class="field-group">
+              <label for="business-name">Business name</label>
+              <input
+                id="business-name"
+                name="business_name"
+                type="text"
+                maxlength="80"
+                value="BrightSmile Dental"
+                data-business-name
+              >
+            </div>
+
+            <button class="button button--primary profile-form__submit" type="submit">
+              Start demo
+            </button>
+          </form>
+
           <dl class="session-details">
             <div>
               <dt>Status</dt>
               <dd>
                 <span class="status-dot" aria-hidden="true"></span>
-                <span data-session-status>Ready</span>
+                <span data-session-status>Setup required</span>
               </dd>
             </div>
             <div>
@@ -60,8 +87,8 @@
               <dd data-session-channel>Text</dd>
             </div>
             <div>
-              <dt>Language</dt>
-              <dd>English (US)</dd>
+              <dt>Business</dt>
+              <dd data-session-business>Not selected</dd>
             </div>
             <div>
               <dt>Intent</dt>
@@ -73,8 +100,8 @@
             <h3 id="context-title">Collected context</h3>
             <dl class="context-list">
               <div>
-                <dt>Customer</dt>
-                <dd>Not provided</dd>
+                <dt>Profile</dt>
+                <dd data-context-business>Not selected</dd>
               </div>
               <div>
                 <dt>Service</dt>
@@ -122,7 +149,7 @@
                   <time>Now</time>
                 </div>
                 <div class="message__bubble">
-                  <p>Hello. How can I help with your appointment or service question today?</p>
+                  <p data-initial-assistant-text>Choose a demo business profile to begin.</p>
                 </div>
               </div>
             </article>
@@ -131,16 +158,16 @@
           <section class="quick-actions" aria-labelledby="quick-actions-title">
             <h2 id="quick-actions-title">Common requests</h2>
             <div class="quick-actions__grid">
-              <button type="button" data-prompt="I would like to book an appointment.">
+              <button type="button" data-prompt="I would like to book an appointment." disabled>
                 Book appointment
               </button>
-              <button type="button" data-prompt="What services and pricing do you offer?">
+              <button type="button" data-prompt="What services and pricing do you offer?" disabled>
                 Services and pricing
               </button>
-              <button type="button" data-prompt="What is your cancellation policy?">
+              <button type="button" data-prompt="What is your cancellation policy?" disabled>
                 Cancellation policy
               </button>
-              <button type="button" data-prompt="I need to speak with a person.">
+              <button type="button" data-prompt="I need to speak with a person." disabled>
                 Speak with a person
               </button>
             </div>

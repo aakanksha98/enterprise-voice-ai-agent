@@ -1,5 +1,4 @@
 from typing import Literal
-from uuid import uuid4
 
 from langchain_core.tools import tool
 from pydantic import BaseModel, ConfigDict, Field
@@ -14,7 +13,6 @@ class BookingRequest(BaseModel):
 
 
 class BookingConfirmation(BookingRequest):
-    appointment_id: str = Field(pattern=r"^APT-[0-9A-F]{8}$")
     status: Literal["confirmed"]
 
 
@@ -26,7 +24,6 @@ def mock_booking_tool(
 ) -> dict[str, str]:
     """Create a simulated appointment without calling an external service."""
     confirmation = BookingConfirmation(
-        appointment_id=f"APT-{uuid4().hex[:8].upper()}",
         status="confirmed",
         service=service,
         date=date,

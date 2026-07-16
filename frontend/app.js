@@ -5,17 +5,37 @@ const characterCount = document.querySelector("[data-character-count]");
 const conversationLog = document.querySelector("#conversation-log");
 const sessionStatus = document.querySelector("[data-session-status]");
 const sessionChannel = document.querySelector("[data-session-channel]");
+const sessionBusiness = document.querySelector("[data-session-business]");
 const sessionIntent = document.querySelector("[data-session-intent]");
 const announcement = document.querySelector("[data-announcement]");
 const resetButton = document.querySelector("[data-reset]");
+const profileForm = document.querySelector("[data-profile-form]");
+const businessTypeSelect = document.querySelector("[data-business-type]");
+const businessNameInput = document.querySelector("[data-business-name]");
 const quickActionButtons = document.querySelectorAll("[data-prompt]");
 const voiceInputButton = document.querySelector("[data-voice-input]");
 const speakLatestButton = document.querySelector("[data-speak-latest]");
 const voiceStatus = document.querySelector("[data-voice-status]");
+const contextBusiness = document.querySelector("[data-context-business]");
 const contextService = document.querySelector("[data-context-service]");
 const contextAppointment = document.querySelector("[data-context-appointment]");
+const initialAssistantText = document.querySelector("[data-initial-assistant-text]");
 
 const MAX_MESSAGE_LENGTH = Number(messageInput.maxLength);
+const BUSINESS_PROFILES = {
+  dental: {
+    label: "Dental Clinic",
+    defaultName: "BrightSmile Dental",
+  },
+  salon: {
+    label: "Salon",
+    defaultName: "Luxe Hair Studio",
+  },
+  auto_repair: {
+    label: "Auto Repair Shop",
+    defaultName: "TurboFix Garage",
+  },
+};
 const SpeechRecognitionConstructor =
   window.SpeechRecognition || window.webkitSpeechRecognition;
 
@@ -29,8 +49,11 @@ let currentTranscript = "";
 let recognitionErrorMessage = "";
 let activeUtterance = null;
 let isSubmitting = false;
+let isProfileReady = false;
 let requestGeneration = 0;
 let sessionId = createSessionId();
+let activeBusinessType = businessTypeSelect.value;
+let activeBusinessName = BUSINESS_PROFILES[activeBusinessType].defaultName;
 
 const supportsSpeechSynthesis =
   typeof window.speechSynthesis !== "undefined" &&
@@ -46,7 +69,11 @@ function updateComposerState() {
   const hasMessage = messageInput.value.trim().length > 0;
 
   sendButton.disabled =
-    !hasMessage || isListening || isRecognitionStarting || isSubmitting;
+    !isProfileReady ||
+    !hasMessage ||
+    isListening ||
+    isRecognitionStarting ||
+    isSubmitting;
   characterCount.textContent = `${messageLength} / ${MAX_MESSAGE_LENGTH}`;
   characterCount.classList.toggle("is-near-limit", messageLength >= 450);
   resizeMessageInput();
@@ -75,9 +102,17 @@ function setVoiceStatus(message, isActive = false) {
 
 function updateVoiceControls() {
   voiceInputButton.disabled =
-    !recognition || isRecognitionStarting || isRecognitionStopping || isSubmitting;
+    !isProfileReady ||
+    !recognition ||
+    isRecognitionStarting ||
+    isRecognitionStopping ||
+    isSubmitting;
   speakLatestButton.disabled =
-    !supportsSpeechSynthesis || isListening || isRecognitionStarting || isSubmitting;
+    !isProfileReady ||
+    !supportsSpeechSynthesis ||
+    isListening ||
+    isRecognitionStarting ||
+    isSubmitting;
 }
 
 function setListeningState(listening) {
@@ -98,6 +133,44 @@ function formatCurrentTime() {
     hour: "numeric",
     minute: "2-digit",
   }).format(new Date());
+}
+
+function selectedProfile() {
+  return BUSINESS_PROFILES[businessTypeSelect.value] || BUSINESS_PROFILES.dental;
+}
+
+function cleanBusinessName(value, fallback) {
+  const cleaned = value.replace(/[\u0000-\u001F\u007F]/g, " ").replace(/\s+/g, " ").trim();
+  return (cleaned || fallback).slice(0, 80);
+}
+
+function profileSummary() {
+  const profile = BUSINESS_PROFILES[activeBusinessType] || BUSINESS_PROFILES.dental;
+  return `${activeBusinessName} (${profile.label})`;
+}
+
+function greetingForActiveProfile() {
+  return `Hi! I'm Aster, the AI receptionist for ${activeBusinessName}. How can I help today?`;
+}
+
+function updateQuickActionState() {
+  quickActionButtons.forEach((button) => {
+    button.disabled = !isProfileReady || isSubmitting;
+  });
+}
+
+function updateProfileDisplay() {
+  if (!isProfileReady) {
+    sessionBusiness.textContent = "Not selected";
+    contextBusiness.textContent = "Not selected";
+    initialAssistantText.textContent = "Choose a demo business profile to begin.";
+    return;
+  }
+
+  const summary = profileSummary();
+  sessionBusiness.textContent = activeBusinessName;
+  contextBusiness.textContent = summary;
+  initialAssistantText.textContent = greetingForActiveProfile();
 }
 
 function createUserMessage(message) {
@@ -179,19 +252,33 @@ function formatIntent(intent) {
 }
 
 function updateCollectedContext(response) {
+  if (response.business_type && response.business_name) {
+    activeBusinessType = response.business_type;
+    activeBusinessName = response.business_name;
+    updateProfileDisplay();
+  }
+
   if (response.slots?.service) {
     contextService.textContent = response.slots.service;
   }
 
-  if (response.reference_id) {
-    contextAppointment.textContent = response.reference_id;
+  if (response.active_appointment) {
+    const appointment = response.active_appointment;
+    contextService.textContent = appointment.service;
+    contextAppointment.textContent = `${appointment.date} at ${appointment.time} (${formatIntent(appointment.status)})`;
   }
 }
 
 async function submitMessage() {
   const message = messageInput.value.trim();
 
-  if (!message || isListening || isRecognitionStarting || isSubmitting) {
+  if (
+    !isProfileReady ||
+    !message ||
+    isListening ||
+    isRecognitionStarting ||
+    isSubmitting
+  ) {
     return;
   }
 
@@ -204,13 +291,19 @@ async function submitMessage() {
   sessionIntent.textContent = "Awaiting classification";
   announcement.textContent = "Request sent to the assistant.";
   updateComposerState();
+  updateQuickActionState();
   conversationLog.scrollTo({ top: conversationLog.scrollHeight, behavior: "smooth" });
 
   try {
     const response = await fetch("/api/v1/conversation", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, session_id: activeSessionId }),
+      body: JSON.stringify({
+        message,
+        session_id: activeSessionId,
+        business_type: activeBusinessType,
+        business_name: activeBusinessName,
+      }),
     });
 
     if (!response.ok) {
@@ -246,6 +339,7 @@ async function submitMessage() {
       isSubmitting = false;
       updateComposerState();
       updateVoiceControls();
+      updateQuickActionState();
       conversationLog.scrollTo({
         top: conversationLog.scrollHeight,
         behavior: "smooth",
@@ -282,7 +376,7 @@ function cancelVoiceActivity() {
   setVoiceStatus(defaultVoiceStatus());
 }
 
-function resetConversation() {
+function resetConversation({ announce = true } = {}) {
   cancelVoiceActivity();
   requestGeneration += 1;
   isSubmitting = false;
@@ -291,15 +385,48 @@ function resetConversation() {
     .querySelectorAll("[data-dynamic-message]")
     .forEach((message) => message.remove());
   messageInput.value = "";
-  sessionStatus.textContent = "Ready";
+  sessionStatus.textContent = isProfileReady ? "Ready" : "Setup required";
   sessionChannel.textContent = "Text";
   sessionIntent.textContent = "Not identified";
   contextService.textContent = "Not selected";
   contextAppointment.textContent = "No details";
-  announcement.textContent = "Conversation reset.";
+  updateProfileDisplay();
+  announcement.textContent = announce
+    ? "Conversation reset."
+    : `Demo profile set to ${profileSummary()}.`;
   updateComposerState();
+  updateVoiceControls();
+  updateQuickActionState();
   conversationLog.scrollTo({ top: 0, behavior: "smooth" });
-  messageInput.focus();
+  if (isProfileReady) {
+    messageInput.focus();
+  } else {
+    businessNameInput.focus();
+  }
+}
+
+function updateBusinessNameDefault() {
+  const profile = selectedProfile();
+  const currentName = businessNameInput.value.trim();
+  const isDefaultName = Object.values(BUSINESS_PROFILES).some(
+    (businessProfile) => businessProfile.defaultName === currentName,
+  );
+
+  businessNameInput.placeholder = profile.defaultName;
+  if (!currentName || isDefaultName) {
+    businessNameInput.value = profile.defaultName;
+  }
+}
+
+function applyBusinessProfile(event) {
+  event.preventDefault();
+
+  const profile = selectedProfile();
+  activeBusinessType = businessTypeSelect.value;
+  activeBusinessName = cleanBusinessName(businessNameInput.value, profile.defaultName);
+  businessNameInput.value = activeBusinessName;
+  isProfileReady = true;
+  resetConversation({ announce: false });
 }
 
 function combineTranscript(baseText, transcript) {
@@ -554,6 +681,10 @@ messageInput.addEventListener("keydown", (event) => {
 
 quickActionButtons.forEach((button) => {
   button.addEventListener("click", () => {
+    if (!isProfileReady) {
+      return;
+    }
+
     cancelVoiceActivity();
     messageInput.value = button.dataset.prompt;
     sessionChannel.textContent = "Text";
@@ -562,9 +693,14 @@ quickActionButtons.forEach((button) => {
   });
 });
 
+profileForm.addEventListener("submit", applyBusinessProfile);
+businessTypeSelect.addEventListener("change", updateBusinessNameDefault);
 voiceInputButton.addEventListener("click", toggleVoiceInput);
 speakLatestButton.addEventListener("click", speakLatestAssistantMessage);
-resetButton.addEventListener("click", resetConversation);
+resetButton.addEventListener("click", () => resetConversation());
 
+updateBusinessNameDefault();
+updateProfileDisplay();
 initializeVoiceSupport();
+updateQuickActionState();
 updateComposerState();

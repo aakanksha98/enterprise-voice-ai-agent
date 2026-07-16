@@ -17,22 +17,22 @@ def rag_decision() -> PlannerDecision:
             service=None,
             date=None,
             time=None,
-            appointment_id=None,
             escalation_reason=None,
         ),
     )
 
 
 def test_rag_intent_retrieves_and_serializes_business_knowledge() -> None:
-    retrieval_queries: list[str] = []
+    retrieval_queries: list[dict[str, str]] = []
     response_inputs: list[dict[str, str]] = []
 
-    def retrieve(query: str) -> list[Document]:
-        retrieval_queries.append(query)
+    def retrieve(request: dict[str, str]) -> list[Document]:
+        retrieval_queries.append(request)
         return [
             Document(
                 page_content="  Haircuts start at $35.  ",
                 metadata={
+                    "business_type": "dental",
                     "source": "service-catalog",
                     "category": "pricing",
                     "similarity": 0.91,
@@ -57,7 +57,9 @@ def test_rag_intent_retrieves_and_serializes_business_knowledge() -> None:
         context=context,
     )
 
-    assert retrieval_queries == ["What does a haircut cost?"]
+    assert retrieval_queries == [
+        {"query": "What does a haircut cost?", "business_type": "dental"}
+    ]
     assert result == {
         "user_message": "  What does a haircut cost?  ",
         "conversation_history": [
@@ -82,6 +84,7 @@ def test_rag_intent_retrieves_and_serializes_business_knowledge() -> None:
                 "content": "Haircuts start at $35.",
                 "source": "service-catalog",
                 "category": "pricing",
+                "business_type": "dental",
                 "similarity": 0.91,
             },
             {

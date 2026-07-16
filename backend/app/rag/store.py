@@ -11,6 +11,7 @@ from langchain_core.embeddings import Embeddings
 @dataclass(frozen=True)
 class _PreparedDocument:
     content: str
+    business_type: str
     source: str
     category: str
     content_hash: str
@@ -43,6 +44,7 @@ class NeonKnowledgeStore:
                 CREATE TABLE IF NOT EXISTS knowledge_chunks (
                     id UUID PRIMARY KEY,
                     content_hash TEXT NOT NULL UNIQUE,
+                    business_type TEXT NOT NULL,
                     source TEXT NOT NULL,
                     category TEXT NOT NULL,
                     content TEXT NOT NULL,
@@ -50,6 +52,18 @@ class NeonKnowledgeStore:
                     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
                     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
                 )
+                """
+            )
+            connection.execute(
+                """
+                ALTER TABLE knowledge_chunks
+                ADD COLUMN IF NOT EXISTS business_type TEXT NOT NULL DEFAULT 'general'
+                """
+            )
+            connection.execute(
+                """
+                CREATE INDEX IF NOT EXISTS knowledge_chunks_business_type_idx
+                ON knowledge_chunks (business_type)
                 """
             )
             connection.execute(
@@ -81,6 +95,7 @@ class NeonKnowledgeStore:
             (
                 uuid4(),
                 document.content_hash,
+                document.business_type,
                 document.source,
                 document.category,
                 document.content,
@@ -95,10 +110,19 @@ class NeonKnowledgeStore:
                 cursor.executemany(
                     """
                     INSERT INTO knowledge_chunks
-                        (id, content_hash, source, category, content, embedding)
+                        (
+                            id,
+                            content_hash,
+                            business_type,
+                            source,
+                            category,
+                            content,
+                            embedding
+                        )
                     VALUES
-                        (%s, %s, %s, %s, %s, %s::vector)
+                        (%s, %s, %s, %s, %s, %s, %s::vector)
                     ON CONFLICT (content_hash) DO UPDATE SET
+                        business_type = EXCLUDED.business_type,
                         source = EXCLUDED.source,
                         category = EXCLUDED.category,
                         content = EXCLUDED.content,
@@ -110,7 +134,7 @@ class NeonKnowledgeStore:
 
         return len(rows)
 
-    def search(self, query: str) -> list[Document]:
+    def search(self, query: str, business_type: str | None = None) -> list[Document]:
         cleaned_query = query.strip()
         if not cleaned_query:
             raise ValueError("Retrieval query must not be empty")
@@ -121,31 +145,56 @@ class NeonKnowledgeStore:
         )
         self.ensure_schema()
 
+        cleaned_business_type = business_type.strip() if business_type else None
         with _connect(self.database_url) as connection:
-            rows = connection.execute(
-                """
-                SELECT
-                    content,
-                    source,
-                    category,
-                    1 - (embedding <=> %s::vector) AS similarity
-                FROM knowledge_chunks
-                ORDER BY embedding <=> %s::vector
-                LIMIT %s
-                """,
-                (query_vector, query_vector, self.top_k),
-            ).fetchall()
+            if cleaned_business_type:
+                rows = connection.execute(
+                    """
+                    SELECT
+                        content,
+                        business_type,
+                        source,
+                        category,
+                        1 - (embedding <=> %s::vector) AS similarity
+                    FROM knowledge_chunks
+                    WHERE business_type = %s
+                    ORDER BY embedding <=> %s::vector
+                    LIMIT %s
+                    """,
+                    (
+                        query_vector,
+                        cleaned_business_type,
+                        query_vector,
+                        self.top_k,
+                    ),
+                ).fetchall()
+            else:
+                rows = connection.execute(
+                    """
+                    SELECT
+                        content,
+                        business_type,
+                        source,
+                        category,
+                        1 - (embedding <=> %s::vector) AS similarity
+                    FROM knowledge_chunks
+                    ORDER BY embedding <=> %s::vector
+                    LIMIT %s
+                    """,
+                    (query_vector, query_vector, self.top_k),
+                ).fetchall()
 
         return [
             Document(
                 page_content=content,
                 metadata={
+                    "business_type": business_type,
                     "source": source,
                     "category": category,
                     "similarity": float(similarity),
                 },
             )
-            for content, source, category, similarity in rows
+            for content, business_type, source, category, similarity in rows
         ]
 
 
@@ -156,10 +205,12 @@ def _prepare_document(document: Document) -> _PreparedDocument | None:
 
     source = str(document.metadata.get("source") or "business_knowledge").strip()
     category = str(document.metadata.get("category") or "general").strip()
-    fingerprint = f"{source}\0{category}\0{content}".encode("utf-8")
+    business_type = str(document.metadata.get("business_type") or "general").strip()
+    fingerprint = f"{business_type}\0{source}\0{category}\0{content}".encode("utf-8")
 
     return _PreparedDocument(
         content=content,
+        business_type=business_type or "general",
         source=source or "business_knowledge",
         category=category or "general",
         content_hash=sha256(fingerprint).hexdigest(),

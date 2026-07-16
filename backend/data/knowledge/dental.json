@@ -1,0 +1,32 @@
+[
+  {
+    "business_type": "dental",
+    "source": "dental-service-catalog",
+    "category": "services",
+    "content": "The Dental Clinic demo offers dental cleaning, dental exam, teeth whitening, fillings, and emergency dental visits."
+  },
+  {
+    "business_type": "dental",
+    "source": "dental-pricing",
+    "category": "pricing",
+    "content": "Dental cleaning starts at $120. Dental exams start at $90. Teeth whitening starts at $250. Fillings start at $180. Emergency dental visits start at $150 before treatment costs."
+  },
+  {
+    "business_type": "dental",
+    "source": "dental-hours",
+    "category": "hours",
+    "content": "Dental Clinic demo hours are Monday through Friday from 8 AM to 5 PM, with Saturday appointments from 9 AM to 1 PM."
+  },
+  {
+    "business_type": "dental",
+    "source": "dental-policy",
+    "category": "policy",
+    "content": "Dental appointments should be cancelled or rescheduled at least 24 hours in advance. Late arrivals may need to be rescheduled."
+  },
+  {
+    "business_type": "dental",
+    "source": "dental-faq",
+    "category": "faq",
+    "content": "For a dental cleaning, patients should allow about 45 to 60 minutes. For whitening, patients should allow about 75 minutes."
+  }
+]

@@ -33,7 +33,6 @@ def test_valid_message_is_normalized_and_planned() -> None:
             service=None,
             date=None,
             time=None,
-            appointment_id=None,
             escalation_reason=None,
         ),
     )
@@ -47,6 +46,11 @@ def test_valid_message_is_normalized_and_planned() -> None:
         {
             "user_message": "Please help me",
             "conversation_history": "No prior conversation.",
+            "business_type": "Dental Clinic",
+            "supported_services": (
+                "dental cleaning, dental exam, teeth whitening, filling, "
+                "emergency dental visit"
+            ),
         }
     ]
     assert result == {
@@ -103,7 +107,6 @@ def test_valid_path_runs_planner_after_validation() -> None:
             service=None,
             date=None,
             time=None,
-            appointment_id=None,
             escalation_reason=None,
         ),
     )
@@ -157,7 +160,6 @@ def test_planner_schema_accepts_only_supported_intents(
             service=None,
             date=None,
             time=None,
-            appointment_id=None,
             escalation_reason=None,
         ),
     )
@@ -175,7 +177,6 @@ def test_planner_schema_rejects_unknown_intent() -> None:
                 service=None,
                 date=None,
                 time=None,
-                appointment_id=None,
                 escalation_reason=None,
             ),
         )
@@ -194,7 +195,6 @@ def test_planner_schema_rejects_out_of_range_confidence(
                 service=None,
                 date=None,
                 time=None,
-                appointment_id=None,
                 escalation_reason=None,
             ),
         )

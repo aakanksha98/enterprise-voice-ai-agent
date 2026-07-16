@@ -41,6 +41,8 @@ body {
 }
 
 button,
+input,
+select,
 textarea {
   font: inherit;
 }
@@ -50,6 +52,8 @@ button {
 }
 
 button:focus-visible,
+input:focus-visible,
+select:focus-visible,
 textarea:focus-visible,
 [tabindex="-1"]:focus-visible {
   outline: 3px solid rgba(195, 107, 20, 0.35);
@@ -253,6 +257,43 @@ textarea:focus-visible,
 
 .session-panel__header {
   margin-bottom: 22px;
+}
+
+.profile-form {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 24px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.68);
+}
+
+.field-group {
+  display: grid;
+  gap: 6px;
+}
+
+.field-group label {
+  color: var(--text-soft);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.field-group input,
+.field-group select {
+  width: 100%;
+  min-height: 38px;
+  padding: 7px 9px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  color: var(--text);
+  background: var(--surface);
+}
+
+.profile-form__submit {
+  width: 100%;
 }
 
 .eyebrow {
@@ -543,6 +584,11 @@ textarea:focus-visible,
   background: var(--primary-soft);
 }
 
+.quick-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
 .composer-region {
   padding: 18px 28px 22px;
   border-top: 1px solid var(--border);
@@ -729,6 +775,18 @@ textarea:focus-visible,
     display: none;
   }
 
+  .profile-form {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+    align-items: end;
+    margin-bottom: 12px;
+    padding: 10px;
+  }
+
+  .profile-form__submit {
+    width: auto;
+    min-width: 104px;
+  }
+
   .session-details {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -808,6 +866,14 @@ textarea:focus-visible,
 
   .session-details {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .profile-form {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-form__submit {
+    width: 100%;
   }
 
   .session-details > div:nth-child(2) {

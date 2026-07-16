@@ -17,7 +17,6 @@ from backend.app.tools.rescheduling import (
 
 def reschedule_decision(
     *,
-    appointment_id: str | None = "APT-1234ABCD",
     date: str | None = "Friday",
     time: str | None = "4 PM",
 ) -> PlannerDecision:
@@ -29,7 +28,6 @@ def reschedule_decision(
             service=None,
             date=date,
             time=time,
-            appointment_id=appointment_id,
             escalation_reason=None,
         ),
     )
@@ -41,14 +39,14 @@ def create_recording_reschedule_tool(
 ) -> BaseTool:
     @tool("record_reschedule", args_schema=RescheduleRequest)
     def record_reschedule(
-        appointment_id: str,
+        service: str,
         new_date: str,
         new_time: str,
     ) -> Any:
         """Record a reschedule request for a deterministic test."""
         calls.append(
             {
-                "appointment_id": appointment_id,
+                "service": service,
                 "new_date": new_date,
                 "new_time": new_time,
             }
@@ -57,10 +55,10 @@ def create_recording_reschedule_tool(
             return result
 
         return {
-            "appointment_id": appointment_id,
+            "service": service,
             "status": "rescheduled",
-            "new_date": new_date,
-            "new_time": new_time,
+            "date": new_date,
+            "time": new_time,
         }
 
     return record_reschedule
@@ -69,7 +67,7 @@ def create_recording_reschedule_tool(
 def test_mock_reschedule_tool_returns_structured_confirmation() -> None:
     result = mock_reschedule_tool.invoke(
         {
-            "appointment_id": " APT-1234ABCD ",
+            "service": " dental cleaning ",
             "new_date": " Friday ",
             "new_time": " 4 PM ",
         }
@@ -77,9 +75,9 @@ def test_mock_reschedule_tool_returns_structured_confirmation() -> None:
 
     assert mock_reschedule_tool.name == "reschedule_appointment"
     assert result == {
-        "appointment_id": "APT-1234ABCD",
-        "new_date": "Friday",
-        "new_time": "4 PM",
+        "service": "dental cleaning",
+        "date": "Friday",
+        "time": "4 PM",
         "status": "rescheduled",
     }
 
@@ -92,13 +90,21 @@ def test_reschedule_intent_invokes_tool_and_persists_result() -> None:
     )
 
     result = agent_graph.invoke(
-        {"user_message": "Move appointment APT-1234ABCD to Friday at 4 PM"},
+        {
+            "user_message": "Move my appointment to Friday at 4 PM",
+            "active_appointment": {
+                "service": "dental cleaning",
+                "date": "tomorrow",
+                "time": "2 PM",
+                "status": "confirmed",
+            },
+        },
         context=context,
     )
 
     assert tool_calls == [
         {
-            "appointment_id": "APT-1234ABCD",
+            "service": "dental cleaning",
             "new_date": "Friday",
             "new_time": "4 PM",
         }
@@ -106,13 +112,19 @@ def test_reschedule_intent_invokes_tool_and_persists_result() -> None:
     assert result["workflow_stage"] == "appointment_rescheduled"
     assert result["missing_reschedule_slots"] == []
     assert result["reschedule_result"] == {
-        "appointment_id": "APT-1234ABCD",
-        "new_date": "Friday",
-        "new_time": "4 PM",
+        "service": "dental cleaning",
+        "date": "Friday",
+        "time": "4 PM",
+        "status": "rescheduled",
+    }
+    assert result["active_appointment"] == {
+        "service": "dental cleaning",
+        "date": "Friday",
+        "time": "4 PM",
         "status": "rescheduled",
     }
     assert result["final_response"] == (
-        "Appointment APT-1234ABCD has been rescheduled to Friday at 4 PM."
+        "Your dental cleaning appointment has been rescheduled to Friday at 4 PM."
     )
 
 
@@ -122,7 +134,15 @@ def test_reschedule_route_runs_after_planning() -> None:
         reschedule_tool=create_recording_reschedule_tool([]),
     )
     updates = agent_graph.stream(
-        {"user_message": "Move appointment APT-1234ABCD to Friday at 4 PM"},
+        {
+            "user_message": "Move my appointment to Friday at 4 PM",
+            "active_appointment": {
+                "service": "dental cleaning",
+                "date": "tomorrow",
+                "time": "2 PM",
+                "status": "confirmed",
+            },
+        },
         context=context,
         stream_mode="updates",
     )
@@ -146,7 +166,15 @@ def test_missing_reschedule_slots_skip_tool_invocation() -> None:
     )
 
     result = agent_graph.invoke(
-        {"user_message": "Reschedule appointment APT-1234ABCD"},
+        {
+            "user_message": "Reschedule my appointment",
+            "active_appointment": {
+                "service": "dental cleaning",
+                "date": "tomorrow",
+                "time": "2 PM",
+                "status": "confirmed",
+            },
+        },
         context=context,
     )
 
@@ -165,9 +193,9 @@ def test_reschedule_node_rejects_invalid_tool_result() -> None:
         reschedule_tool=create_recording_reschedule_tool(
             [],
             {
-                "appointment_id": "APT-1234ABCD",
-                "new_date": "Friday",
-                "new_time": "4 PM",
+                "service": "dental cleaning",
+                "date": "Friday",
+                "time": "4 PM",
                 "status": "confirmed",
             },
         ),
@@ -175,7 +203,15 @@ def test_reschedule_node_rejects_invalid_tool_result() -> None:
 
     with pytest.raises(ValidationError):
         agent_graph.invoke(
-            {"user_message": "Move appointment APT-1234ABCD to Friday at 4 PM"},
+            {
+                "user_message": "Move my appointment to Friday at 4 PM",
+                "active_appointment": {
+                    "service": "dental cleaning",
+                    "date": "tomorrow",
+                    "time": "2 PM",
+                    "status": "confirmed",
+                },
+            },
             context=context,
         )
 
@@ -187,7 +223,15 @@ def test_complete_reschedule_requires_tool_context() -> None:
 
     with pytest.raises(RuntimeError, match="Reschedule tool context is required"):
         agent_graph.invoke(
-            {"user_message": "Move appointment APT-1234ABCD to Friday at 4 PM"},
+            {
+                "user_message": "Move my appointment to Friday at 4 PM",
+                "active_appointment": {
+                    "service": "dental cleaning",
+                    "date": "tomorrow",
+                    "time": "2 PM",
+                    "status": "confirmed",
+                },
+            },
             context=context,
         )
 
@@ -195,7 +239,27 @@ def test_complete_reschedule_requires_tool_context() -> None:
 def test_planned_intent_router_selects_reschedule_route() -> None:
     assert route_planned_intent(
         {
-            "user_message": "Move appointment APT-1234ABCD to Friday at 4 PM",
+            "user_message": "Move my appointment to Friday at 4 PM",
             "detected_intent": "reschedule_appointment",
         }
     ) == "reschedule"
+
+
+def test_reschedule_without_active_appointment_skips_tool() -> None:
+    tool_calls: list[dict[str, str]] = []
+    context = AgentContext(
+        planner=RunnableLambda(lambda _: reschedule_decision()),
+        reschedule_tool=create_recording_reschedule_tool(tool_calls),
+    )
+
+    result = agent_graph.invoke(
+        {"user_message": "Move my appointment to Friday at 4 PM"},
+        context=context,
+    )
+
+    assert tool_calls == []
+    assert result["workflow_stage"] == "no_active_appointment"
+    assert result["reschedule_result"] is None
+    assert result["final_response"] == (
+        "I don't have an active appointment in this conversation to reschedule yet."
+    )

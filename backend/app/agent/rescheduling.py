@@ -4,6 +4,7 @@ from langgraph.runtime import Runtime
 
 from backend.app.agent.context import AgentContext
 from backend.app.agent.state import (
+    ActiveAppointment,
     AgentState,
     AgentStateUpdate,
     RescheduleResult,
@@ -16,10 +17,10 @@ from backend.app.tools.rescheduling import (
 
 
 REQUIRED_RESCHEDULE_SLOTS: tuple[RescheduleSlot, ...] = (
-    "appointment_id",
     "date",
     "time",
 )
+ACTIVE_APPOINTMENT_STATUSES = {"confirmed", "rescheduled"}
 
 
 def execute_reschedule(
@@ -28,6 +29,14 @@ def execute_reschedule(
 ) -> AgentStateUpdate:
     if runtime.context is None:
         raise RuntimeError("Agent context is required for the reschedule intent")
+
+    appointment = _current_active_appointment(state)
+    if appointment is None:
+        return {
+            "workflow_stage": "no_active_appointment",
+            "missing_reschedule_slots": [],
+            "reschedule_result": None,
+        }
 
     extracted_slots = state.get("extracted_slots", {})
     missing_slots = [
@@ -48,12 +57,13 @@ def execute_reschedule(
         )
 
     request = RescheduleRequest(
-        appointment_id=extracted_slots["appointment_id"],
+        service=appointment["service"],
         new_date=extracted_slots["date"],
         new_time=extracted_slots["time"],
     )
     raw_result = runtime.context.reschedule_tool.invoke(request.model_dump())
     confirmation = RescheduleConfirmation.model_validate(raw_result)
+    rescheduled_appointment = cast(ActiveAppointment, confirmation.model_dump())
 
     return {
         "workflow_stage": "appointment_rescheduled",
@@ -62,8 +72,20 @@ def execute_reschedule(
             RescheduleResult,
             confirmation.model_dump(),
         ),
+        "active_appointment": rescheduled_appointment,
     }
 
 
 def _clean_slot_value(value: object) -> str:
     return value.strip() if isinstance(value, str) else ""
+
+
+def _current_active_appointment(state: AgentState) -> ActiveAppointment | None:
+    appointment = state.get("active_appointment")
+    if appointment is None:
+        return None
+
+    if appointment.get("status") in ACTIVE_APPOINTMENT_STATUSES:
+        return appointment
+
+    return None

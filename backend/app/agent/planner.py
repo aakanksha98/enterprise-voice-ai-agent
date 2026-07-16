@@ -20,7 +20,6 @@ class PlannerSlots(BaseModel):
     service: str | None
     date: str | None
     time: str | None
-    appointment_id: str | None
     escalation_reason: str | None
 
 
@@ -63,7 +62,10 @@ PLANNER_PROMPT = ChatPromptTemplate.from_messages(
     [
         (
             "system",
-            """You are the constrained intent planner for an enterprise receptionist.
+"""You are the constrained intent planner for an enterprise receptionist.
+
+Selected demo business type: {business_type}
+Supported bookable services: {supported_services}
 
 Choose exactly one route:
 - small_talk: greetings, assistant identity, capabilities, or courtesy replies.
@@ -80,8 +82,9 @@ capabilities, or courtesy. For every other route, set small_talk_topic to null.
 Extract only details explicitly present in the current request or its relevant
 unfinished prior request. Preserve date and time phrases as spoken. Use prior
 conversation only to resolve a direct follow-up. Do not carry details into an
-unrelated request. Do not answer the request and do not call any tool. Return a
-confidence between 0 and 1 for the route selection.""",
+unrelated request. Cancellation and rescheduling use the current active
+appointment in the conversation. Do not answer the request and do not call any
+tool. Return a confidence between 0 and 1 for the route selection.""",
         ),
         (
             "human",

@@ -1,4 +1,3 @@
-import re
 from typing import Any
 
 import pytest
@@ -15,7 +14,7 @@ from backend.app.tools.booking import BookingRequest, mock_booking_tool
 
 def booking_decision(
     *,
-    service: str | None = "haircut",
+    service: str | None = "dental cleaning",
     date: str | None = "tomorrow",
     time: str | None = "2 PM",
 ) -> PlannerDecision:
@@ -27,7 +26,6 @@ def booking_decision(
             service=service,
             date=date,
             time=time,
-            appointment_id=None,
             escalation_reason=None,
         ),
     )
@@ -49,7 +47,6 @@ def create_recording_booking_tool(
             return result
 
         return {
-            "appointment_id": "APT-1234ABCD",
             "status": "confirmed",
             "service": service,
             "date": date,
@@ -61,16 +58,14 @@ def create_recording_booking_tool(
 
 def test_mock_booking_tool_returns_structured_confirmation() -> None:
     result = mock_booking_tool.invoke(
-        {"service": " haircut ", "date": " tomorrow ", "time": " 2 PM "}
+        {"service": " dental cleaning ", "date": " tomorrow ", "time": " 2 PM "}
     )
 
     assert mock_booking_tool.name == "book_appointment"
-    assert re.fullmatch(r"APT-[0-9A-F]{8}", result["appointment_id"])
     assert result == {
-        "service": "haircut",
+        "service": "dental cleaning",
         "date": "tomorrow",
         "time": "2 PM",
-        "appointment_id": result["appointment_id"],
         "status": "confirmed",
     }
 
@@ -83,50 +78,53 @@ def test_booking_intent_invokes_tool_and_persists_result() -> None:
     )
 
     result = agent_graph.invoke(
-        {"user_message": "Book a haircut tomorrow at 2 PM"},
+        {"user_message": "Book a dental cleaning tomorrow at 2 PM"},
         context=context,
     )
 
     assert tool_calls == [
-        {"service": "haircut", "date": "tomorrow", "time": "2 PM"}
+        {"service": "dental cleaning", "date": "tomorrow", "time": "2 PM"}
     ]
     assert result == {
-        "user_message": "Book a haircut tomorrow at 2 PM",
+        "user_message": "Book a dental cleaning tomorrow at 2 PM",
         "conversation_history": [
             {
                 "role": "user",
-                "content": "Book a haircut tomorrow at 2 PM",
+                "content": "Book a dental cleaning tomorrow at 2 PM",
             },
             {
                 "role": "assistant",
                 "content": (
-                    "Your haircut appointment is booked for tomorrow at 2 PM. "
-                    "Your appointment ID is APT-1234ABCD."
+                    "Your dental cleaning appointment is booked for tomorrow at 2 PM."
                 ),
             },
         ],
-        "normalized_message": "Book a haircut tomorrow at 2 PM",
+        "normalized_message": "Book a dental cleaning tomorrow at 2 PM",
         "input_status": "valid",
         "workflow_stage": "appointment_booked",
         "detected_intent": "book_appointment",
         "planner_confidence": 0.96,
         "extracted_slots": {
-            "service": "haircut",
+            "service": "dental cleaning",
             "date": "tomorrow",
             "time": "2 PM",
         },
         "small_talk_topic": None,
         "missing_booking_slots": [],
         "booking_result": {
-            "service": "haircut",
+            "service": "dental cleaning",
             "date": "tomorrow",
             "time": "2 PM",
-            "appointment_id": "APT-1234ABCD",
+            "status": "confirmed",
+        },
+        "active_appointment": {
+            "service": "dental cleaning",
+            "date": "tomorrow",
+            "time": "2 PM",
             "status": "confirmed",
         },
         "final_response": (
-            "Your haircut appointment is booked for tomorrow at 2 PM. "
-            "Your appointment ID is APT-1234ABCD."
+            "Your dental cleaning appointment is booked for tomorrow at 2 PM."
         ),
     }
 
@@ -137,7 +135,7 @@ def test_booking_route_runs_after_planning() -> None:
         booking_tool=create_recording_booking_tool([]),
     )
     updates = agent_graph.stream(
-        {"user_message": "Book a haircut tomorrow at 2 PM"},
+        {"user_message": "Book a dental cleaning tomorrow at 2 PM"},
         context=context,
         stream_mode="updates",
     )
@@ -159,7 +157,7 @@ def test_missing_booking_slots_skip_tool_invocation() -> None:
     )
 
     result = agent_graph.invoke(
-        {"user_message": "Book a haircut tomorrow"},
+        {"user_message": "Book a dental cleaning tomorrow"},
         context=context,
     )
 
@@ -180,7 +178,7 @@ def test_booking_node_rejects_invalid_tool_result() -> None:
 
     with pytest.raises(ValidationError):
         agent_graph.invoke(
-            {"user_message": "Book a haircut tomorrow at 2 PM"},
+            {"user_message": "Book a dental cleaning tomorrow at 2 PM"},
             context=context,
         )
 
@@ -192,7 +190,7 @@ def test_complete_booking_requires_tool_context() -> None:
 
     with pytest.raises(RuntimeError, match="Booking tool context is required"):
         agent_graph.invoke(
-            {"user_message": "Book a haircut tomorrow at 2 PM"},
+            {"user_message": "Book a dental cleaning tomorrow at 2 PM"},
             context=context,
         )
 
@@ -200,7 +198,36 @@ def test_complete_booking_requires_tool_context() -> None:
 def test_planned_intent_router_selects_booking_route() -> None:
     assert route_planned_intent(
         {
-            "user_message": "Book a haircut tomorrow at 2 PM",
+            "user_message": "Book a dental cleaning tomorrow at 2 PM",
             "detected_intent": "book_appointment",
         }
     ) == "booking"
+
+
+def test_unsupported_service_skips_booking_tool() -> None:
+    tool_calls: list[dict[str, str]] = []
+    context = AgentContext(
+        planner=RunnableLambda(lambda _: booking_decision(service="oil change")),
+        booking_tool=create_recording_booking_tool(tool_calls),
+    )
+
+    result = agent_graph.invoke(
+        {"user_message": "Book an oil change tomorrow at 2 PM"},
+        context=context,
+    )
+
+    assert tool_calls == []
+    assert result["workflow_stage"] == "unsupported_service_requested"
+    assert result["unsupported_service"] == "oil change"
+    assert result["supported_services"] == [
+        "dental cleaning",
+        "dental exam",
+        "teeth whitening",
+        "filling",
+        "emergency dental visit",
+    ]
+    assert result["final_response"] == (
+        "I can't book oil change for this demo profile. I can help with "
+        "dental cleaning, dental exam, teeth whitening, filling, and "
+        "emergency dental visit. Which service would you like?"
+    )

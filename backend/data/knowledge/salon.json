@@ -1,0 +1,32 @@
+[
+  {
+    "business_type": "salon",
+    "source": "salon-service-catalog",
+    "category": "services",
+    "content": "The Salon demo offers haircuts, blowouts, hair color, manicures, and facials."
+  },
+  {
+    "business_type": "salon",
+    "source": "salon-pricing",
+    "category": "pricing",
+    "content": "Haircuts start at $45. Blowouts start at $40. Hair color starts at $95. Manicures start at $30. Facials start at $85."
+  },
+  {
+    "business_type": "salon",
+    "source": "salon-hours",
+    "category": "hours",
+    "content": "Salon demo hours are Tuesday through Saturday from 10 AM to 7 PM. The salon is closed Sunday and Monday."
+  },
+  {
+    "business_type": "salon",
+    "source": "salon-policy",
+    "category": "policy",
+    "content": "Salon appointments should be cancelled or rescheduled at least 24 hours in advance. Color appointments may require a consultation before booking."
+  },
+  {
+    "business_type": "salon",
+    "source": "salon-faq",
+    "category": "faq",
+    "content": "Haircuts usually take 45 minutes. Blowouts usually take 40 minutes. Hair color can take 90 to 150 minutes depending on the service."
+  }
+]

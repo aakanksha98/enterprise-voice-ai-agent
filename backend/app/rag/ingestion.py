@@ -3,6 +3,7 @@ from pathlib import Path
 
 from langchain_core.documents import Document
 
+from backend.app.business_profiles import is_supported_business_type
 from backend.app.rag.retriever import create_neon_knowledge_store
 from backend.app.rag.store import NeonKnowledgeStore
 
@@ -23,6 +24,11 @@ def documents_from_entries(entries: object) -> list[Document]:
 
         content = _required_string(entry, "content", index)
         source = _required_string(entry, "source", index)
+        business_type = _required_string(entry, "business_type", index)
+        if not is_supported_business_type(business_type):
+            raise ValueError(
+                f"Knowledge entry {index} business_type is not supported"
+            )
         category_value = entry.get("category", "general")
         if not isinstance(category_value, str) or not category_value.strip():
             raise ValueError(f"Knowledge entry {index} category must be text")
@@ -31,6 +37,7 @@ def documents_from_entries(entries: object) -> list[Document]:
             Document(
                 page_content=content,
                 metadata={
+                    "business_type": business_type,
                     "source": source,
                     "category": category_value.strip(),
                 },

@@ -4,6 +4,13 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel, ConfigDict, Field
 
 from backend.app.agent.state import PlannerIntent, WorkflowStage
+from backend.app.business_profiles import (
+    BUSINESS_NAME_MAX_LENGTH,
+    BusinessType,
+    DEFAULT_BUSINESS_TYPE,
+    get_business_profile,
+    sanitize_business_name,
+)
 from backend.app.services.conversation import (
     ConversationService,
     get_conversation_service,
@@ -15,15 +22,23 @@ class ConversationRequest(BaseModel):
 
     message: str = Field(min_length=1, max_length=500)
     session_id: str = Field(pattern=r"^[A-Za-z0-9_-]{8,64}$")
+    business_type: BusinessType = DEFAULT_BUSINESS_TYPE
+    business_name: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=BUSINESS_NAME_MAX_LENGTH,
+    )
 
 
 class ConversationResponse(BaseModel):
     response: str
+    business_type: BusinessType
+    business_name: str
     intent: PlannerIntent | None
     workflow_stage: WorkflowStage
     slots: dict[str, str]
     missing_fields: list[str]
-    reference_id: str | None
+    active_appointment: dict[str, str] | None
 
 
 router = APIRouter(prefix="/conversation", tags=["conversation"])
@@ -38,14 +53,22 @@ def continue_conversation(
     request: ConversationRequest,
     service: ConversationService = Depends(get_conversation_service),
 ) -> ConversationResponse:
-    state = service.respond(request.message, request.session_id)
+    state = service.respond(
+        request.message,
+        request.session_id,
+        business_type=request.business_type,
+        business_name=request.business_name,
+    )
+    profile = get_business_profile(request.business_type)
     return ConversationResponse(
         response=state["final_response"] or "",
+        business_type=request.business_type,
+        business_name=sanitize_business_name(request.business_name, profile),
         intent=state.get("detected_intent"),
         workflow_stage=state["workflow_stage"],
         slots=dict(state.get("extracted_slots", {})),
         missing_fields=_missing_fields(state),
-        reference_id=_reference_id(state),
+        active_appointment=_active_appointment(state),
     )
 
 
@@ -61,15 +84,13 @@ def _missing_fields(state: dict[str, Any]) -> list[str]:
     return []
 
 
-def _reference_id(state: dict[str, Any]) -> str | None:
-    result_fields = (
-        ("booking_result", "appointment_id"),
-        ("cancellation_result", "appointment_id"),
-        ("reschedule_result", "appointment_id"),
-        ("escalation_result", "escalation_id"),
-    )
-    for result_name, identifier_name in result_fields:
-        result = state.get(result_name)
-        if isinstance(result, dict) and result.get(identifier_name):
-            return str(result[identifier_name])
-    return None
+def _active_appointment(state: dict[str, Any]) -> dict[str, str] | None:
+    appointment = state.get("active_appointment")
+    if not isinstance(appointment, dict):
+        return None
+
+    required_fields = ("service", "date", "time", "status")
+    if not all(isinstance(appointment.get(field), str) for field in required_fields):
+        return None
+
+    return {field: appointment[field] for field in required_fields}

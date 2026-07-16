@@ -1,0 +1,32 @@
+[
+  {
+    "business_type": "auto_repair",
+    "source": "auto-service-catalog",
+    "category": "services",
+    "content": "The Auto Repair Shop demo offers oil changes, brake inspections, tire rotations, battery diagnostics, and engine diagnostics."
+  },
+  {
+    "business_type": "auto_repair",
+    "source": "auto-pricing",
+    "category": "pricing",
+    "content": "Oil changes start at $65. Brake inspections start at $45. Tire rotations start at $35. Battery diagnostics start at $40. Engine diagnostics start at $95."
+  },
+  {
+    "business_type": "auto_repair",
+    "source": "auto-hours",
+    "category": "hours",
+    "content": "Auto Repair Shop demo hours are Monday through Friday from 7:30 AM to 6 PM and Saturday from 8 AM to 2 PM."
+  },
+  {
+    "business_type": "auto_repair",
+    "source": "auto-policy",
+    "category": "policy",
+    "content": "Auto repair appointments should be cancelled or rescheduled at least 24 hours in advance. Diagnostic appointments provide an estimate before repair work begins."
+  },
+  {
+    "business_type": "auto_repair",
+    "source": "auto-faq",
+    "category": "faq",
+    "content": "Oil changes usually take 30 to 45 minutes. Brake inspections usually take 45 minutes. Engine diagnostics usually take about one hour."
+  }
+]

@@ -19,7 +19,6 @@ def _small_talk_decision(topic: SmallTalkTopic) -> PlannerDecision:
             service=None,
             date=None,
             time=None,
-            appointment_id=None,
             escalation_reason=None,
         ),
     )
@@ -85,7 +84,6 @@ def test_planner_schema_requires_topic_for_small_talk_intent() -> None:
                 service=None,
                 date=None,
                 time=None,
-                appointment_id=None,
                 escalation_reason=None,
             ),
         )
@@ -104,7 +102,6 @@ def test_planner_schema_rejects_small_talk_topic_for_other_intents() -> None:
                 service=None,
                 date=None,
                 time=None,
-                appointment_id=None,
                 escalation_reason=None,
             ),
         )

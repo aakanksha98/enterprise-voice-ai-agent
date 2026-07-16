@@ -5,6 +5,7 @@ from langchain_core.tools import tool
 from backend.app.agent.context import AgentContext
 from backend.app.agent.graph import build_memory_agent_graph
 from backend.app.agent.planner import PlannerDecision, PlannerSlots
+from backend.app.business_profiles import get_business_profile
 from backend.app.tools.booking import BookingRequest
 
 
@@ -22,7 +23,6 @@ def booking_decision(
             service=service,
             date=date,
             time=time,
-            appointment_id=None,
             escalation_reason=None,
         ),
     )
@@ -47,7 +47,6 @@ def test_memory_carries_slots_across_an_incomplete_booking() -> None:
         """Record a booking assembled across conversation turns."""
         tool_calls.append({"service": service, "date": date, "time": time})
         return {
-            "appointment_id": "APT-1234ABCD",
             "status": "confirmed",
             "service": service,
             "date": date,
@@ -57,6 +56,7 @@ def test_memory_carries_slots_across_an_incomplete_booking() -> None:
     graph = build_memory_agent_graph()
     context = AgentContext(
         planner=RunnableLambda(plan),
+        business_profile=get_business_profile("salon"),
         booking_tool=record_memory_booking,
     )
     config = {"configurable": {"thread_id": "booking-thread"}}
@@ -78,6 +78,8 @@ def test_memory_carries_slots_across_an_incomplete_booking() -> None:
         {
             "user_message": "Book a haircut tomorrow",
             "conversation_history": "No prior conversation.",
+            "business_type": "Salon",
+            "supported_services": "haircut, blowout, hair color, manicure, facial",
         },
         {
             "user_message": "At 2 PM",
@@ -85,6 +87,8 @@ def test_memory_carries_slots_across_an_incomplete_booking() -> None:
                 "user: Book a haircut tomorrow\n"
                 "assistant: To book the appointment, please provide time."
             ),
+            "business_type": "Salon",
+            "supported_services": "haircut, blowout, hair color, manicure, facial",
         },
     ]
     assert tool_calls == [
@@ -101,8 +105,7 @@ def test_memory_carries_slots_across_an_incomplete_booking() -> None:
         {
             "role": "assistant",
             "content": (
-                "Your haircut appointment is booked for tomorrow at 2 PM. "
-                "Your appointment ID is APT-1234ABCD."
+                "Your haircut appointment is booked for tomorrow at 2 PM."
             ),
         },
     ]
@@ -118,7 +121,6 @@ def test_memory_isolates_conversation_threads() -> None:
             service=None,
             date=None,
             time=None,
-            appointment_id=None,
             escalation_reason=None,
         ),
     )
@@ -165,7 +167,6 @@ def test_new_turn_clears_stale_terminal_outputs() -> None:
                     service=None,
                     date=None,
                     time=None,
-                    appointment_id=None,
                     escalation_reason=None,
                 ),
             ),
@@ -177,7 +178,6 @@ def test_new_turn_clears_stale_terminal_outputs() -> None:
                     service=None,
                     date=None,
                     time=None,
-                    appointment_id=None,
                     escalation_reason=None,
                 ),
             ),

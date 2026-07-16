@@ -13,11 +13,11 @@ from backend.app.agent.state import (
     RetrievedDocument,
     WorkflowStage,
 )
+from backend.app.business_profiles import supported_service_names
 
 
 FOLLOW_UP_STAGES: dict[PlannerIntent, WorkflowStage] = {
     "book_appointment": "booking_information_required",
-    "cancel_appointment": "cancellation_information_required",
     "reschedule_appointment": "reschedule_information_required",
 }
 
@@ -77,6 +77,8 @@ def _reset_turn_outputs() -> AgentStateUpdate:
         "retrieved_documents": [],
         "missing_booking_slots": [],
         "booking_result": None,
+        "unsupported_service": None,
+        "supported_services": [],
         "missing_cancellation_slots": [],
         "cancellation_result": None,
         "missing_reschedule_slots": [],
@@ -100,6 +102,10 @@ def plan_request(
         {
             "user_message": normalized_message,
             "conversation_history": _format_prior_conversation(state),
+            "business_type": runtime.context.business_profile.label,
+            "supported_services": ", ".join(
+                supported_service_names(runtime.context.business_profile)
+            ),
         }
     )
     current_slots = cast(
@@ -128,7 +134,12 @@ def retrieve_business_knowledge(
     if not normalized_message:
         raise ValueError("A normalized message is required before retrieval")
 
-    documents = runtime.context.rag_retriever.invoke(normalized_message)
+    documents = runtime.context.rag_retriever.invoke(
+        {
+            "query": normalized_message,
+            "business_type": runtime.context.business_profile.business_type,
+        }
+    )
     retrieved_documents = [
         serialized
         for document in documents
@@ -157,6 +168,10 @@ def _serialize_document(document: Document) -> RetrievedDocument | None:
     category = metadata.get("category")
     if category:
         retrieved_document["category"] = str(category)
+
+    business_type = metadata.get("business_type")
+    if business_type:
+        retrieved_document["business_type"] = str(business_type)
 
     similarity = metadata.get("similarity")
     if isinstance(similarity, (int, float)) and not isinstance(similarity, bool):

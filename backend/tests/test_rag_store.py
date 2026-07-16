@@ -96,11 +96,13 @@ def test_documents_from_entries_builds_langchain_documents() -> None:
     documents = documents_from_entries(
         [
             {
+                "business_type": "salon",
                 "content": "  Haircuts start at $35. ",
                 "source": " service-catalog ",
                 "category": " pricing ",
             },
             {
+                "business_type": "salon",
                 "content": "Appointments require 24 hours notice.",
                 "source": "policy-manual",
             },
@@ -110,11 +112,19 @@ def test_documents_from_entries_builds_langchain_documents() -> None:
     assert documents == [
         Document(
             page_content="Haircuts start at $35.",
-            metadata={"source": "service-catalog", "category": "pricing"},
+            metadata={
+                "business_type": "salon",
+                "source": "service-catalog",
+                "category": "pricing",
+            },
         ),
         Document(
             page_content="Appointments require 24 hours notice.",
-            metadata={"source": "policy-manual", "category": "general"},
+            metadata={
+                "business_type": "salon",
+                "source": "policy-manual",
+                "category": "general",
+            },
         ),
     ]
 
@@ -124,10 +134,31 @@ def test_documents_from_entries_builds_langchain_documents() -> None:
     [
         ({"content": "not a list"}, "JSON array"),
         (["not an object"], "entry 0 must be an object"),
-        ([{"content": "", "source": "catalog"}], "content must be text"),
-        ([{"content": "Policy", "source": ""}], "source must be text"),
+        ([{"content": "Policy", "source": "manual"}], "business_type must be text"),
         (
-            [{"content": "Policy", "source": "manual", "category": 7}],
+            [
+                {
+                    "content": "Policy",
+                    "source": "manual",
+                    "business_type": "restaurant",
+                }
+            ],
+            "business_type is not supported",
+        ),
+        ([{"content": "", "source": "catalog"}], "content must be text"),
+        (
+            [{"content": "Policy", "source": "", "business_type": "salon"}],
+            "source must be text",
+        ),
+        (
+            [
+                {
+                    "content": "Policy",
+                    "source": "manual",
+                    "business_type": "salon",
+                    "category": 7,
+                }
+            ],
             "category must be text",
         ),
     ],
@@ -154,7 +185,11 @@ def test_store_indexes_documents_with_parameterized_upsert(monkeypatch: Any) -> 
         [
             Document(
                 page_content="  Haircuts start at $35.  ",
-                metadata={"source": "catalog", "category": "pricing"},
+                metadata={
+                    "business_type": "salon",
+                    "source": "catalog",
+                    "category": "pricing",
+                },
             ),
             Document(page_content="   "),
         ]
@@ -176,6 +211,7 @@ def test_store_indexes_documents_with_parameterized_upsert(monkeypatch: Any) -> 
     assert len(rows) == 1
     row = rows[0]
     assert row[2:] == (
+        "salon",
         "catalog",
         "pricing",
         "Haircuts start at $35.",
@@ -187,7 +223,7 @@ def test_store_indexes_documents_with_parameterized_upsert(monkeypatch: Any) -> 
 def test_store_searches_by_cosine_distance(monkeypatch: Any) -> None:
     embeddings = FakeEmbeddings(query_vector=[0.3, 0.2, 0.1])
     connector = FakeConnector(
-        search_rows=[("Policy text", "policy-manual", "policy", 0.87)]
+        search_rows=[("Policy text", "salon", "policy-manual", "policy", 0.87)]
     )
     monkeypatch.setattr("backend.app.rag.store._connect", connector)
     store = NeonKnowledgeStore(
@@ -204,6 +240,7 @@ def test_store_searches_by_cosine_distance(monkeypatch: Any) -> None:
         Document(
             page_content="Policy text",
             metadata={
+                "business_type": "salon",
                 "source": "policy-manual",
                 "category": "policy",
                 "similarity": 0.87,
@@ -213,6 +250,38 @@ def test_store_searches_by_cosine_distance(monkeypatch: Any) -> None:
     search_query, params = connector.connections[1].execute_calls[0]
     assert "embedding <=> %s::vector" in search_query
     assert params == ("[0.3,0.2,0.1]", "[0.3,0.2,0.1]", 2)
+
+
+def test_store_search_filters_by_business_type(monkeypatch: Any) -> None:
+    embeddings = FakeEmbeddings(query_vector=[0.3, 0.2, 0.1])
+    connector = FakeConnector(
+        search_rows=[
+            (
+                "Oil changes start at $65.",
+                "auto_repair",
+                "auto-pricing",
+                "pricing",
+                0.9,
+            )
+        ]
+    )
+    monkeypatch.setattr("backend.app.rag.store._connect", connector)
+    store = NeonKnowledgeStore(
+        database_url="postgresql://test",
+        embeddings=embeddings,
+        embedding_dimensions=3,
+        top_k=2,
+    )
+
+    documents = store.search(
+        "What does an oil change cost?",
+        business_type="auto_repair",
+    )
+
+    assert documents[0].metadata["business_type"] == "auto_repair"
+    search_query, params = connector.connections[1].execute_calls[0]
+    assert "WHERE business_type = %s" in search_query
+    assert params == ("[0.3,0.2,0.1]", "auto_repair", "[0.3,0.2,0.1]", 2)
 
 
 @pytest.mark.parametrize(

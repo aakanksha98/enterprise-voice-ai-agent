@@ -39,7 +39,6 @@ def conversation_client(
             service=None,
             date=None,
             time=None,
-            appointment_id=None,
             escalation_reason=None,
         ),
     )
@@ -70,11 +69,13 @@ def test_conversation_endpoint_returns_final_response(
     assert response.status_code == 200
     assert response.json() == {
         "response": CLARIFICATION_RESPONSE,
+        "business_type": "dental",
+        "business_name": "BrightSmile Dental",
         "intent": "clarification",
         "workflow_stage": "planned",
         "slots": {},
         "missing_fields": [],
-        "reference_id": None,
+        "active_appointment": None,
     }
 
 
@@ -93,12 +94,22 @@ def test_conversation_endpoint_reuses_session_memory(
         {
             "user_message": "First request",
             "conversation_history": "No prior conversation.",
+            "business_type": "Dental Clinic",
+            "supported_services": (
+                "dental cleaning, dental exam, teeth whitening, filling, "
+                "emergency dental visit"
+            ),
         },
         {
             "user_message": "Follow-up request",
             "conversation_history": (
                 "user: First request\n"
                 f"assistant: {CLARIFICATION_RESPONSE}"
+            ),
+            "business_type": "Dental Clinic",
+            "supported_services": (
+                "dental cleaning, dental exam, teeth whitening, filling, "
+                "emergency dental visit"
             ),
         },
     ]
@@ -113,7 +124,6 @@ def test_conversation_endpoint_returns_tool_reference() -> None:
             service="haircut",
             date="Friday",
             time="4 PM",
-            appointment_id=None,
             escalation_reason=None,
         ),
     )
@@ -122,7 +132,6 @@ def test_conversation_endpoint_returns_tool_reference() -> None:
     def api_booking(service: str, date: str, time: str) -> dict[str, str]:
         """Return a deterministic booking for the conversation API test."""
         return {
-            "appointment_id": "APT-1234ABCD",
             "status": "confirmed",
             "service": service,
             "date": date,
@@ -143,13 +152,22 @@ def test_conversation_endpoint_returns_tool_reference() -> None:
             json={
                 "message": "Book a haircut Friday at 4 PM",
                 "session_id": "booking-session",
+                "business_type": "salon",
+                "business_name": "Luxe Hair Studio",
             },
         )
     finally:
         app.dependency_overrides.clear()
 
     assert response.status_code == 200
-    assert response.json()["reference_id"] == "APT-1234ABCD"
+    assert response.json()["business_type"] == "salon"
+    assert response.json()["business_name"] == "Luxe Hair Studio"
+    assert response.json()["active_appointment"] == {
+        "service": "haircut",
+        "date": "Friday",
+        "time": "4 PM",
+        "status": "confirmed",
+    }
     assert response.json()["slots"] == {
         "service": "haircut",
         "date": "Friday",

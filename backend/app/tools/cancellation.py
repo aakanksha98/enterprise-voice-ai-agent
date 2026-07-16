@@ -7,7 +7,9 @@ from pydantic import BaseModel, ConfigDict, Field
 class CancellationRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
-    appointment_id: str = Field(min_length=1)
+    service: str = Field(min_length=1)
+    date: str = Field(min_length=1)
+    time: str = Field(min_length=1)
 
 
 class CancellationConfirmation(CancellationRequest):
@@ -15,10 +17,16 @@ class CancellationConfirmation(CancellationRequest):
 
 
 @tool("cancel_appointment", args_schema=CancellationRequest)
-def mock_cancellation_tool(appointment_id: str) -> dict[str, str]:
+def mock_cancellation_tool(
+    service: str,
+    date: str,
+    time: str,
+) -> dict[str, str]:
     """Simulate cancellation without calling an external appointment service."""
     confirmation = CancellationConfirmation(
-        appointment_id=appointment_id,
+        service=service,
+        date=date,
+        time=time,
         status="cancelled",
     )
     return confirmation.model_dump()

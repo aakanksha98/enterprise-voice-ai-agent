@@ -20,10 +20,11 @@ PlannerIntent = Literal[
 ]
 BookingSlot = Literal["service", "date", "time"]
 BookingStatus = Literal["confirmed"]
-CancellationSlot = Literal["appointment_id"]
+CancellationSlot = Literal["active_appointment"]
 CancellationStatus = Literal["cancelled"]
-RescheduleSlot = Literal["appointment_id", "date", "time"]
+RescheduleSlot = Literal["date", "time"]
 RescheduleStatus = Literal["rescheduled"]
+AppointmentStatus = Literal["confirmed", "cancelled", "rescheduled"]
 EscalationStatus = Literal["queued"]
 ConversationRole = Literal["user", "assistant"]
 WorkflowStage = Literal[
@@ -32,10 +33,13 @@ WorkflowStage = Literal[
     "knowledge_retrieved",
     "booking_information_required",
     "appointment_booked",
+    "appointment_already_active",
+    "unsupported_service_requested",
     "cancellation_information_required",
     "appointment_cancelled",
     "reschedule_information_required",
     "appointment_rescheduled",
+    "no_active_appointment",
     "human_escalation_queued",
     "rejected",
 ]
@@ -45,7 +49,6 @@ class ExtractedSlots(TypedDict, total=False):
     service: str
     date: str
     time: str
-    appointment_id: str
     escalation_reason: str
 
 
@@ -53,11 +56,18 @@ class RetrievedDocument(TypedDict):
     content: str
     source: str
     category: NotRequired[str]
+    business_type: NotRequired[str]
     similarity: NotRequired[float]
 
 
+class ActiveAppointment(TypedDict):
+    service: str
+    date: str
+    time: str
+    status: AppointmentStatus
+
+
 class BookingResult(TypedDict):
-    appointment_id: str
     status: BookingStatus
     service: str
     date: str
@@ -65,15 +75,17 @@ class BookingResult(TypedDict):
 
 
 class CancellationResult(TypedDict):
-    appointment_id: str
     status: CancellationStatus
+    service: str
+    date: str
+    time: str
 
 
 class RescheduleResult(TypedDict):
-    appointment_id: str
     status: RescheduleStatus
-    new_date: str
-    new_time: str
+    service: str
+    date: str
+    time: str
 
 
 class EscalationResult(TypedDict):
@@ -103,6 +115,9 @@ class AgentState(TypedDict):
     retrieved_documents: NotRequired[list[RetrievedDocument]]
     missing_booking_slots: NotRequired[list[BookingSlot]]
     booking_result: NotRequired[BookingResult | None]
+    unsupported_service: NotRequired[str | None]
+    supported_services: NotRequired[list[str]]
+    active_appointment: NotRequired[ActiveAppointment | None]
     missing_cancellation_slots: NotRequired[list[CancellationSlot]]
     cancellation_result: NotRequired[CancellationResult | None]
     missing_reschedule_slots: NotRequired[list[RescheduleSlot]]
@@ -126,6 +141,9 @@ class AgentStateUpdate(TypedDict, total=False):
     retrieved_documents: list[RetrievedDocument]
     missing_booking_slots: list[BookingSlot]
     booking_result: BookingResult | None
+    unsupported_service: str | None
+    supported_services: list[str]
+    active_appointment: ActiveAppointment | None
     missing_cancellation_slots: list[CancellationSlot]
     cancellation_result: CancellationResult | None
     missing_reschedule_slots: list[RescheduleSlot]

@@ -1,4 +1,5 @@
 import os
+from typing import TypedDict
 
 from langchain_core.documents import Document
 from langchain_core.runnables import Runnable, RunnableLambda
@@ -11,7 +12,13 @@ DEFAULT_EMBEDDING_MODEL = "text-embedding-3-small"
 DEFAULT_EMBEDDING_DIMENSIONS = 1536
 DEFAULT_TOP_K = 4
 
-RAGRetriever = Runnable[str, list[Document]]
+
+class KnowledgeRetrievalRequest(TypedDict, total=False):
+    query: str
+    business_type: str
+
+
+RAGRetriever = Runnable[str | KnowledgeRetrievalRequest, list[Document]]
 
 
 def create_neon_knowledge_store(
@@ -66,7 +73,12 @@ def create_neon_retriever(
     store: NeonKnowledgeStore | None = None,
 ) -> RAGRetriever:
     knowledge_store = store or create_neon_knowledge_store()
-    return RunnableLambda(knowledge_store.search)
+    return RunnableLambda(
+        lambda request: knowledge_store.search(
+            request if isinstance(request, str) else request["query"],
+            business_type=None if isinstance(request, str) else request.get("business_type"),
+        )
+    )
 
 
 def _positive_int_from_env(name: str, default: int) -> int:

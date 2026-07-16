@@ -27,7 +27,6 @@ def escalation_decision(
             service=None,
             date=None,
             time=None,
-            appointment_id=None,
             escalation_reason=reason,
         ),
     )
