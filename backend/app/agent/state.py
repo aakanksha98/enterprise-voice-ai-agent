@@ -17,11 +17,15 @@ PlannerIntent = Literal[
     "human_escalation",
     "clarification",
 ]
+BookingSlot = Literal["service", "date", "time"]
+BookingStatus = Literal["confirmed"]
 WorkflowStage = Literal[
     "ready_for_planning",
     "planned",
     "faq_answered",
     "knowledge_retrieved",
+    "booking_information_required",
+    "appointment_booked",
     "rejected",
 ]
 
@@ -41,6 +45,14 @@ class RetrievedDocument(TypedDict):
     similarity: NotRequired[float]
 
 
+class BookingResult(TypedDict):
+    appointment_id: str
+    status: BookingStatus
+    service: str
+    date: str
+    time: str
+
+
 class AgentState(TypedDict):
     user_message: str
     normalized_message: NotRequired[str]
@@ -54,6 +66,8 @@ class AgentState(TypedDict):
     draft_response: NotRequired[str]
     retrieval_query: NotRequired[str]
     retrieved_documents: NotRequired[list[RetrievedDocument]]
+    missing_booking_slots: NotRequired[list[BookingSlot]]
+    booking_result: NotRequired[BookingResult | None]
 
 
 class AgentStateUpdate(TypedDict, total=False):
@@ -68,3 +82,5 @@ class AgentStateUpdate(TypedDict, total=False):
     draft_response: str
     retrieval_query: str
     retrieved_documents: list[RetrievedDocument]
+    missing_booking_slots: list[BookingSlot]
+    booking_result: BookingResult | None

@@ -1,6 +1,7 @@
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
+from backend.app.agent.booking import execute_booking
 from backend.app.agent.context import AgentContext
 from backend.app.agent.faq import answer_faq
 from backend.app.agent.nodes import (
@@ -23,6 +24,7 @@ def build_agent_graph() -> CompiledStateGraph:
     graph_builder.add_node("planner", plan_request)
     graph_builder.add_node("faq", answer_faq)
     graph_builder.add_node("rag", retrieve_business_knowledge)
+    graph_builder.add_node("booking", execute_booking)
 
     graph_builder.add_edge(START, "validate_input")
     graph_builder.add_conditional_edges(
@@ -40,11 +42,13 @@ def build_agent_graph() -> CompiledStateGraph:
         {
             "faq": "faq",
             "rag": "rag",
+            "booking": "booking",
             "deferred": END,
         },
     )
     graph_builder.add_edge("faq", END)
     graph_builder.add_edge("rag", END)
+    graph_builder.add_edge("booking", END)
     graph_builder.add_edge("reject_invalid_input", END)
 
     return graph_builder.compile(name="enterprise_voice_agent")

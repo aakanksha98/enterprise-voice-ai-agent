@@ -26,12 +26,12 @@ def planner_context(
 def test_valid_message_is_normalized_and_planned() -> None:
     planner_inputs: list[dict[str, str]] = []
     decision = PlannerDecision(
-        intent="book_appointment",
+        intent="clarification",
         confidence=0.94,
         faq_topic=None,
         slots=PlannerSlots(
-            service="haircut",
-            date="tomorrow",
+            service=None,
+            date=None,
             time=None,
             appointment_id=None,
             escalation_reason=None,
@@ -39,23 +39,20 @@ def test_valid_message_is_normalized_and_planned() -> None:
     )
 
     result = agent_graph.invoke(
-        {"user_message": "  Book a haircut tomorrow  "},
+        {"user_message": "  Please help me  "},
         context=planner_context(decision, planner_inputs.append),
     )
 
-    assert planner_inputs == [{"user_message": "Book a haircut tomorrow"}]
+    assert planner_inputs == [{"user_message": "Please help me"}]
     assert result == {
-        "user_message": "  Book a haircut tomorrow  ",
-        "normalized_message": "Book a haircut tomorrow",
+        "user_message": "  Please help me  ",
+        "normalized_message": "Please help me",
         "input_status": "valid",
         "workflow_stage": "planned",
-        "detected_intent": "book_appointment",
+        "detected_intent": "clarification",
         "planner_confidence": 0.94,
         "faq_topic": None,
-        "extracted_slots": {
-            "service": "haircut",
-            "date": "tomorrow",
-        },
+        "extracted_slots": {},
     }
 
 
@@ -78,7 +75,7 @@ def test_valid_message_requires_planner_context() -> None:
 
 def test_valid_path_runs_planner_after_validation() -> None:
     decision = PlannerDecision(
-        intent="book_appointment",
+        intent="clarification",
         confidence=0.9,
         faq_topic=None,
         slots=PlannerSlots(
@@ -90,7 +87,7 @@ def test_valid_path_runs_planner_after_validation() -> None:
         ),
     )
     updates = agent_graph.stream(
-        {"user_message": "Book an appointment"},
+        {"user_message": "Please help me"},
         context=planner_context(decision),
         stream_mode="updates",
     )
