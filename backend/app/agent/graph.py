@@ -12,6 +12,7 @@ from backend.app.agent.nodes import (
     retrieve_business_knowledge,
     validate_input,
 )
+from backend.app.agent.rescheduling import execute_reschedule
 from backend.app.agent.routing import route_planned_intent, route_validated_input
 from backend.app.agent.state import AgentState
 
@@ -27,6 +28,7 @@ def build_agent_graph() -> CompiledStateGraph:
     graph_builder.add_node("rag", retrieve_business_knowledge)
     graph_builder.add_node("booking", execute_booking)
     graph_builder.add_node("cancellation", execute_cancellation)
+    graph_builder.add_node("reschedule", execute_reschedule)
 
     graph_builder.add_edge(START, "validate_input")
     graph_builder.add_conditional_edges(
@@ -46,6 +48,7 @@ def build_agent_graph() -> CompiledStateGraph:
             "rag": "rag",
             "booking": "booking",
             "cancellation": "cancellation",
+            "reschedule": "reschedule",
             "deferred": END,
         },
     )
@@ -53,6 +56,7 @@ def build_agent_graph() -> CompiledStateGraph:
     graph_builder.add_edge("rag", END)
     graph_builder.add_edge("booking", END)
     graph_builder.add_edge("cancellation", END)
+    graph_builder.add_edge("reschedule", END)
     graph_builder.add_edge("reject_invalid_input", END)
 
     return graph_builder.compile(name="enterprise_voice_agent")

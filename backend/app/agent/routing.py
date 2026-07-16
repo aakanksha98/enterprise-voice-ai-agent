@@ -9,6 +9,7 @@ PlannedRouteDecision = Literal[
     "rag",
     "booking",
     "cancellation",
+    "reschedule",
     "deferred",
 ]
 
@@ -41,5 +42,8 @@ def route_planned_intent(state: AgentState) -> PlannedRouteDecision:
 
     if detected_intent == "cancel_appointment":
         return "cancellation"
+
+    if detected_intent == "reschedule_appointment":
+        return "reschedule"
 
     return "deferred"

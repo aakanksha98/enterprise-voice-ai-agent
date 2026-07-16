@@ -12,3 +12,4 @@ class AgentContext:
     rag_retriever: RAGRetriever | None = None
     booking_tool: BaseTool | None = None
     cancellation_tool: BaseTool | None = None
+    reschedule_tool: BaseTool | None = None
