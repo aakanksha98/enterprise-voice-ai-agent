@@ -1,0 +1,14 @@
+.env
+.env.*
+!.env.example
+.venv/
+.vercel/
+.pytest_cache/
+.pytest_tmp/
+__pycache__/
+*.py[cod]
+backend/tests/
+frontend/
+requirements-dev.txt
+node_modules/
+*.log
