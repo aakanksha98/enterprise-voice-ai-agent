@@ -1,14 +1,15 @@
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
+from backend.app.agent.context import AgentContext
 from backend.app.agent.faq import answer_faq
 from backend.app.agent.nodes import (
     mark_ready_for_planning,
     plan_request,
     reject_invalid_input,
+    retrieve_business_knowledge,
     validate_input,
 )
-from backend.app.agent.planner import AgentContext
 from backend.app.agent.routing import route_planned_intent, route_validated_input
 from backend.app.agent.state import AgentState
 
@@ -21,6 +22,7 @@ def build_agent_graph() -> CompiledStateGraph:
     graph_builder.add_node("reject_invalid_input", reject_invalid_input)
     graph_builder.add_node("planner", plan_request)
     graph_builder.add_node("faq", answer_faq)
+    graph_builder.add_node("rag", retrieve_business_knowledge)
 
     graph_builder.add_edge(START, "validate_input")
     graph_builder.add_conditional_edges(
@@ -37,10 +39,12 @@ def build_agent_graph() -> CompiledStateGraph:
         route_planned_intent,
         {
             "faq": "faq",
+            "rag": "rag",
             "deferred": END,
         },
     )
     graph_builder.add_edge("faq", END)
+    graph_builder.add_edge("rag", END)
     graph_builder.add_edge("reject_invalid_input", END)
 
     return graph_builder.compile(name="enterprise_voice_agent")

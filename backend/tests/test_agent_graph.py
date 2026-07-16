@@ -4,8 +4,9 @@ import pytest
 from langchain_core.runnables import RunnableLambda
 from pydantic import ValidationError
 
+from backend.app.agent.context import AgentContext
 from backend.app.agent.graph import agent_graph
-from backend.app.agent.planner import AgentContext, PlannerDecision, PlannerSlots
+from backend.app.agent.planner import PlannerDecision, PlannerSlots
 from backend.app.agent.routing import route_validated_input
 from backend.app.agent.state import PlannerIntent
 
@@ -77,7 +78,7 @@ def test_valid_message_requires_planner_context() -> None:
 
 def test_valid_path_runs_planner_after_validation() -> None:
     decision = PlannerDecision(
-        intent="rag",
+        intent="book_appointment",
         confidence=0.9,
         faq_topic=None,
         slots=PlannerSlots(
@@ -89,7 +90,7 @@ def test_valid_path_runs_planner_after_validation() -> None:
         ),
     )
     updates = agent_graph.stream(
-        {"user_message": "What services do you offer?"},
+        {"user_message": "Book an appointment"},
         context=planner_context(decision),
         stream_mode="updates",
     )

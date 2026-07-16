@@ -2,9 +2,10 @@ import pytest
 from langchain_core.runnables import RunnableLambda
 from pydantic import ValidationError
 
+from backend.app.agent.context import AgentContext
 from backend.app.agent.faq import FAQ_RESPONSES, answer_faq
 from backend.app.agent.graph import agent_graph
-from backend.app.agent.planner import AgentContext, PlannerDecision, PlannerSlots
+from backend.app.agent.planner import PlannerDecision, PlannerSlots
 from backend.app.agent.routing import route_planned_intent
 from backend.app.agent.state import FAQTopic
 

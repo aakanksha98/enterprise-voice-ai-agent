@@ -21,6 +21,7 @@ WorkflowStage = Literal[
     "ready_for_planning",
     "planned",
     "faq_answered",
+    "knowledge_retrieved",
     "rejected",
 ]
 
@@ -31,6 +32,13 @@ class ExtractedSlots(TypedDict, total=False):
     time: str
     appointment_id: str
     escalation_reason: str
+
+
+class RetrievedDocument(TypedDict):
+    content: str
+    source: str
+    category: NotRequired[str]
+    similarity: NotRequired[float]
 
 
 class AgentState(TypedDict):
@@ -44,6 +52,8 @@ class AgentState(TypedDict):
     extracted_slots: NotRequired[ExtractedSlots]
     faq_topic: NotRequired[FAQTopic | None]
     draft_response: NotRequired[str]
+    retrieval_query: NotRequired[str]
+    retrieved_documents: NotRequired[list[RetrievedDocument]]
 
 
 class AgentStateUpdate(TypedDict, total=False):
@@ -56,3 +66,5 @@ class AgentStateUpdate(TypedDict, total=False):
     extracted_slots: ExtractedSlots
     faq_topic: FAQTopic | None
     draft_response: str
+    retrieval_query: str
+    retrieved_documents: list[RetrievedDocument]

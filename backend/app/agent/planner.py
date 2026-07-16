@@ -1,5 +1,4 @@
 import os
-from dataclasses import dataclass
 from typing import Self
 
 from langchain_core.prompts import ChatPromptTemplate
@@ -54,11 +53,6 @@ class PlannerDecision(BaseModel):
 
 
 PlannerRunnable = Runnable[dict[str, str], PlannerDecision]
-
-
-@dataclass(frozen=True)
-class AgentContext:
-    planner: PlannerRunnable
 
 
 PLANNER_PROMPT = ChatPromptTemplate.from_messages(
