@@ -111,6 +111,9 @@ def test_reschedule_intent_invokes_tool_and_persists_result() -> None:
         "new_time": "4 PM",
         "status": "rescheduled",
     }
+    assert result["final_response"] == (
+        "Appointment APT-1234ABCD has been rescheduled to Friday at 4 PM."
+    )
 
 
 def test_reschedule_route_runs_after_planning() -> None:
@@ -129,6 +132,7 @@ def test_reschedule_route_runs_after_planning() -> None:
         "ready_for_planning",
         "planner",
         "reschedule",
+        "response",
     ]
 
 
@@ -150,6 +154,9 @@ def test_missing_reschedule_slots_skip_tool_invocation() -> None:
     assert result["workflow_stage"] == "reschedule_information_required"
     assert result["missing_reschedule_slots"] == ["date", "time"]
     assert result["reschedule_result"] is None
+    assert result["final_response"] == (
+        "To reschedule the appointment, please provide date and time."
+    )
 
 
 def test_reschedule_node_rejects_invalid_tool_result() -> None:

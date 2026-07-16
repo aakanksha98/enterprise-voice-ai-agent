@@ -52,7 +52,14 @@ def test_valid_message_is_normalized_and_planned() -> None:
     assert result == {
         "user_message": "  Please help me  ",
         "conversation_history": [
-            {"role": "user", "content": "Please help me"}
+            {"role": "user", "content": "Please help me"},
+            {
+                "role": "assistant",
+                "content": (
+                    "Could you clarify whether you need business information, "
+                    "appointment help, or a human specialist?"
+                ),
+            },
         ],
         "normalized_message": "Please help me",
         "input_status": "valid",
@@ -61,6 +68,10 @@ def test_valid_message_is_normalized_and_planned() -> None:
         "planner_confidence": 0.94,
         "faq_topic": None,
         "extracted_slots": {},
+        "final_response": (
+            "Could you clarify whether you need business information, "
+            "appointment help, or a human specialist?"
+        ),
     }
 
 
@@ -74,6 +85,7 @@ def test_empty_message_routes_to_rejection_without_calling_planner() -> None:
         "input_status": "invalid",
         "workflow_stage": "rejected",
         "validation_error": "user_message must not be empty",
+        "final_response": "Please say or enter a request so I can help.",
     }
 
 
@@ -105,6 +117,7 @@ def test_valid_path_runs_planner_after_validation() -> None:
         "validate_input",
         "ready_for_planning",
         "planner",
+        "response",
     ]
 
 
@@ -117,6 +130,7 @@ def test_invalid_path_skips_planner() -> None:
     assert [next(iter(update)) for update in updates] == [
         "validate_input",
         "reject_invalid_input",
+        "response",
     ]
 
 

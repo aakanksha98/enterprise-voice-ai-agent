@@ -86,6 +86,10 @@ def test_escalation_intent_invokes_tool_and_persists_result() -> None:
         "escalation_id": "ESC-1234ABCD",
         "status": "queued",
     }
+    assert result["final_response"] == (
+        "I have queued your request for a human specialist. "
+        "Your escalation ID is ESC-1234ABCD."
+    )
 
 
 def test_escalation_without_reason_still_queues_handoff() -> None:
@@ -121,6 +125,7 @@ def test_escalation_route_runs_after_planning() -> None:
         "ready_for_planning",
         "planner",
         "escalation",
+        "response",
     ]
 
 

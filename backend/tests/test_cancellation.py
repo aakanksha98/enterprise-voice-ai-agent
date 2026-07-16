@@ -79,6 +79,9 @@ def test_cancellation_intent_invokes_tool_and_persists_result() -> None:
         "appointment_id": "APT-1234ABCD",
         "status": "cancelled",
     }
+    assert result["final_response"] == (
+        "Appointment APT-1234ABCD has been cancelled."
+    )
 
 
 def test_cancellation_route_runs_after_planning() -> None:
@@ -97,6 +100,7 @@ def test_cancellation_route_runs_after_planning() -> None:
         "ready_for_planning",
         "planner",
         "cancellation",
+        "response",
     ]
 
 
@@ -116,6 +120,9 @@ def test_missing_appointment_id_skips_cancellation_tool() -> None:
     assert result["workflow_stage"] == "cancellation_information_required"
     assert result["missing_cancellation_slots"] == ["appointment_id"]
     assert result["cancellation_result"] is None
+    assert result["final_response"] == (
+        "Please provide your appointment ID so I can cancel the appointment."
+    )
 
 
 def test_cancellation_node_rejects_invalid_tool_result() -> None:

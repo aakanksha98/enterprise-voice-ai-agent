@@ -100,6 +100,7 @@ class AgentState(TypedDict):
     extracted_slots: NotRequired[ExtractedSlots]
     faq_topic: NotRequired[FAQTopic | None]
     draft_response: NotRequired[str | None]
+    final_response: NotRequired[str | None]
     retrieval_query: NotRequired[str | None]
     retrieved_documents: NotRequired[list[RetrievedDocument]]
     missing_booking_slots: NotRequired[list[BookingSlot]]
@@ -123,6 +124,7 @@ class AgentStateUpdate(TypedDict, total=False):
     extracted_slots: ExtractedSlots
     faq_topic: FAQTopic | None
     draft_response: str | None
+    final_response: str | None
     retrieval_query: str | None
     retrieved_documents: list[RetrievedDocument]
     missing_booking_slots: list[BookingSlot]

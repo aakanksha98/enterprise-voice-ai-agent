@@ -1,10 +1,15 @@
+from pathlib import Path
+
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 
 from backend.app import __version__
+from backend.app.routes.conversation import router as conversation_router
 from backend.app.routes.health import router as health_router
 
 
 API_PREFIX = "/api/v1"
+FRONTEND_DIRECTORY = Path(__file__).resolve().parents[2] / "frontend"
 
 
 def create_app() -> FastAPI:
@@ -14,6 +19,12 @@ def create_app() -> FastAPI:
         version=__version__,
     )
     application.include_router(health_router, prefix=API_PREFIX)
+    application.include_router(conversation_router, prefix=API_PREFIX)
+    application.mount(
+        "/",
+        StaticFiles(directory=FRONTEND_DIRECTORY, html=True),
+        name="frontend",
+    )
     return application
 
 

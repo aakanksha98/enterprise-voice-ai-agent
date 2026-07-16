@@ -55,11 +55,13 @@ def test_faq_plan_routes_through_faq_node() -> None:
         "ready_for_planning",
         "planner",
         "faq",
+        "response",
     ]
-    assert updates[-1]["faq"] == {
+    assert updates[-2]["faq"] == {
         "workflow_stage": "faq_answered",
         "draft_response": FAQ_RESPONSES["greeting"],
     }
+    assert updates[-1]["response"]["final_response"] == FAQ_RESPONSES["greeting"]
 
 
 def test_faq_node_rejects_missing_topic() -> None:

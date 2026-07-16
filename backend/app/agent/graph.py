@@ -16,6 +16,7 @@ from backend.app.agent.nodes import (
     validate_input,
 )
 from backend.app.agent.rescheduling import execute_reschedule
+from backend.app.agent.response import generate_response
 from backend.app.agent.routing import route_planned_intent, route_validated_input
 from backend.app.agent.state import AgentState
 
@@ -35,6 +36,7 @@ def build_agent_graph(
     graph_builder.add_node("cancellation", execute_cancellation)
     graph_builder.add_node("reschedule", execute_reschedule)
     graph_builder.add_node("escalation", execute_human_escalation)
+    graph_builder.add_node("response", generate_response)
 
     graph_builder.add_edge(START, "validate_input")
     graph_builder.add_conditional_edges(
@@ -56,16 +58,17 @@ def build_agent_graph(
             "cancellation": "cancellation",
             "reschedule": "reschedule",
             "escalation": "escalation",
-            "deferred": END,
+            "deferred": "response",
         },
     )
-    graph_builder.add_edge("faq", END)
-    graph_builder.add_edge("rag", END)
-    graph_builder.add_edge("booking", END)
-    graph_builder.add_edge("cancellation", END)
-    graph_builder.add_edge("reschedule", END)
-    graph_builder.add_edge("escalation", END)
-    graph_builder.add_edge("reject_invalid_input", END)
+    graph_builder.add_edge("faq", "response")
+    graph_builder.add_edge("rag", "response")
+    graph_builder.add_edge("booking", "response")
+    graph_builder.add_edge("cancellation", "response")
+    graph_builder.add_edge("reschedule", "response")
+    graph_builder.add_edge("escalation", "response")
+    graph_builder.add_edge("reject_invalid_input", "response")
+    graph_builder.add_edge("response", END)
 
     return graph_builder.compile(
         checkpointer=checkpointer,

@@ -12,6 +12,8 @@ const quickActionButtons = document.querySelectorAll("[data-prompt]");
 const voiceInputButton = document.querySelector("[data-voice-input]");
 const speakLatestButton = document.querySelector("[data-speak-latest]");
 const voiceStatus = document.querySelector("[data-voice-status]");
+const contextService = document.querySelector("[data-context-service]");
+const contextAppointment = document.querySelector("[data-context-appointment]");
 
 const MAX_MESSAGE_LENGTH = Number(messageInput.maxLength);
 const SpeechRecognitionConstructor =
@@ -26,6 +28,9 @@ let recognitionBaseText = "";
 let currentTranscript = "";
 let recognitionErrorMessage = "";
 let activeUtterance = null;
+let isSubmitting = false;
+let requestGeneration = 0;
+let sessionId = createSessionId();
 
 const supportsSpeechSynthesis =
   typeof window.speechSynthesis !== "undefined" &&
@@ -40,7 +45,8 @@ function updateComposerState() {
   const messageLength = messageInput.value.length;
   const hasMessage = messageInput.value.trim().length > 0;
 
-  sendButton.disabled = !hasMessage || isListening || isRecognitionStarting;
+  sendButton.disabled =
+    !hasMessage || isListening || isRecognitionStarting || isSubmitting;
   characterCount.textContent = `${messageLength} / ${MAX_MESSAGE_LENGTH}`;
   characterCount.classList.toggle("is-near-limit", messageLength >= 450);
   resizeMessageInput();
@@ -69,9 +75,9 @@ function setVoiceStatus(message, isActive = false) {
 
 function updateVoiceControls() {
   voiceInputButton.disabled =
-    !recognition || isRecognitionStarting || isRecognitionStopping;
+    !recognition || isRecognitionStarting || isRecognitionStopping || isSubmitting;
   speakLatestButton.disabled =
-    !supportsSpeechSynthesis || isListening || isRecognitionStarting;
+    !supportsSpeechSynthesis || isListening || isRecognitionStarting || isSubmitting;
 }
 
 function setListeningState(listening) {
@@ -105,6 +111,7 @@ function createUserMessage(message) {
 
   article.className = "message message--user";
   article.dataset.userMessage = "true";
+  article.dataset.dynamicMessage = "true";
   content.className = "message__content";
   metadata.className = "message__meta";
   bubble.className = "message__bubble";
@@ -120,21 +127,132 @@ function createUserMessage(message) {
   return article;
 }
 
-function submitMessage() {
+function createAssistantMessage(message, isError = false) {
+  const article = document.createElement("article");
+  const avatar = document.createElement("span");
+  const content = document.createElement("div");
+  const metadata = document.createElement("div");
+  const author = document.createElement("strong");
+  const time = document.createElement("time");
+  const bubble = document.createElement("div");
+  const text = document.createElement("p");
+
+  article.className = "message message--assistant";
+  article.dataset.assistantMessage = "true";
+  article.dataset.dynamicMessage = "true";
+  article.classList.toggle("message--error", isError);
+  avatar.className = "agent-avatar message__avatar";
+  avatar.setAttribute("aria-hidden", "true");
+  avatar.textContent = "AI";
+  content.className = "message__content";
+  metadata.className = "message__meta";
+  bubble.className = "message__bubble";
+  author.textContent = "Aster";
+  time.textContent = formatCurrentTime();
+  text.textContent = message;
+
+  metadata.append(author, time);
+  bubble.append(text);
+  content.append(metadata, bubble);
+  article.append(avatar, content);
+
+  return article;
+}
+
+function createSessionId() {
+  if (typeof window.crypto?.randomUUID === "function") {
+    return window.crypto.randomUUID();
+  }
+
+  return `session-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function formatIntent(intent) {
+  if (!intent) {
+    return "Not identified";
+  }
+
+  return intent
+    .split("_")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
+function updateCollectedContext(response) {
+  if (response.slots?.service) {
+    contextService.textContent = response.slots.service;
+  }
+
+  if (response.reference_id) {
+    contextAppointment.textContent = response.reference_id;
+  }
+}
+
+async function submitMessage() {
   const message = messageInput.value.trim();
 
-  if (!message || isListening || isRecognitionStarting) {
+  if (!message || isListening || isRecognitionStarting || isSubmitting) {
     return;
   }
 
+  const activeGeneration = ++requestGeneration;
+  const activeSessionId = sessionId;
   conversationLog.append(createUserMessage(message));
   messageInput.value = "";
-  sessionStatus.textContent = "Message received";
+  isSubmitting = true;
+  sessionStatus.textContent = "Processing";
   sessionIntent.textContent = "Awaiting classification";
-  announcement.textContent = "Message added to the conversation.";
+  announcement.textContent = "Request sent to the assistant.";
   updateComposerState();
   conversationLog.scrollTo({ top: conversationLog.scrollHeight, behavior: "smooth" });
-  messageInput.focus();
+
+  try {
+    const response = await fetch("/api/v1/conversation", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message, session_id: activeSessionId }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Conversation request failed with status ${response.status}`);
+    }
+
+    const payload = await response.json();
+    if (activeGeneration !== requestGeneration || activeSessionId !== sessionId) {
+      return;
+    }
+
+    conversationLog.append(createAssistantMessage(payload.response));
+    sessionStatus.textContent = "Response ready";
+    sessionIntent.textContent = formatIntent(payload.intent);
+    updateCollectedContext(payload);
+    announcement.textContent = "Assistant response received.";
+  } catch {
+    if (activeGeneration !== requestGeneration) {
+      return;
+    }
+
+    conversationLog.append(
+      createAssistantMessage(
+        "I'm sorry, the assistant is temporarily unavailable. Please try again.",
+        true,
+      ),
+    );
+    sessionStatus.textContent = "Service unavailable";
+    sessionIntent.textContent = "Not identified";
+    announcement.textContent = "The assistant could not complete the request.";
+  } finally {
+    if (activeGeneration === requestGeneration) {
+      isSubmitting = false;
+      updateComposerState();
+      updateVoiceControls();
+      conversationLog.scrollTo({
+        top: conversationLog.scrollHeight,
+        behavior: "smooth",
+      });
+      messageInput.focus();
+    }
+  }
 }
 
 function cancelSpeech() {
@@ -166,11 +284,18 @@ function cancelVoiceActivity() {
 
 function resetConversation() {
   cancelVoiceActivity();
-  document.querySelectorAll("[data-user-message]").forEach((message) => message.remove());
+  requestGeneration += 1;
+  isSubmitting = false;
+  sessionId = createSessionId();
+  document
+    .querySelectorAll("[data-dynamic-message]")
+    .forEach((message) => message.remove());
   messageInput.value = "";
   sessionStatus.textContent = "Ready";
   sessionChannel.textContent = "Text";
   sessionIntent.textContent = "Not identified";
+  contextService.textContent = "Not selected";
+  contextAppointment.textContent = "No details";
   announcement.textContent = "Conversation reset.";
   updateComposerState();
   conversationLog.scrollTo({ top: 0, behavior: "smooth" });

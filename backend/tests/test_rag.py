@@ -25,6 +25,7 @@ def rag_decision() -> PlannerDecision:
 
 def test_rag_intent_retrieves_and_serializes_business_knowledge() -> None:
     retrieval_queries: list[str] = []
+    response_inputs: list[dict[str, str]] = []
 
     def retrieve(query: str) -> list[Document]:
         retrieval_queries.append(query)
@@ -44,6 +45,12 @@ def test_rag_intent_retrieves_and_serializes_business_knowledge() -> None:
     context = AgentContext(
         planner=RunnableLambda(lambda _: rag_decision()),
         rag_retriever=RunnableLambda(retrieve),
+        response_generator=RunnableLambda(
+            lambda response_input: (
+                response_inputs.append(response_input)
+                or "Haircuts start at $35, and we are open Monday through Friday."
+            )
+        ),
     )
     result = agent_graph.invoke(
         {"user_message": "  What does a haircut cost?  "},
@@ -54,7 +61,13 @@ def test_rag_intent_retrieves_and_serializes_business_knowledge() -> None:
     assert result == {
         "user_message": "  What does a haircut cost?  ",
         "conversation_history": [
-            {"role": "user", "content": "What does a haircut cost?"}
+            {"role": "user", "content": "What does a haircut cost?"},
+            {
+                "role": "assistant",
+                "content": (
+                    "Haircuts start at $35, and we are open Monday through Friday."
+                ),
+            },
         ],
         "normalized_message": "What does a haircut cost?",
         "input_status": "valid",
@@ -76,7 +89,19 @@ def test_rag_intent_retrieves_and_serializes_business_knowledge() -> None:
                 "source": "business_knowledge",
             },
         ],
+        "final_response": (
+            "Haircuts start at $35, and we are open Monday through Friday."
+        ),
     }
+    assert response_inputs == [
+        {
+            "user_message": "What does a haircut cost?",
+            "retrieved_context": (
+                "Source: service-catalog\nHaircuts start at $35.\n\n"
+                "Source: business_knowledge\nOpen Monday through Friday."
+            ),
+        }
+    ]
 
 
 def test_rag_route_runs_after_planning() -> None:
@@ -95,6 +120,7 @@ def test_rag_route_runs_after_planning() -> None:
         "ready_for_planning",
         "planner",
         "rag",
+        "response",
     ]
 
 

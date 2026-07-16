@@ -81,7 +81,10 @@ def test_memory_carries_slots_across_an_incomplete_booking() -> None:
         },
         {
             "user_message": "At 2 PM",
-            "conversation_history": "user: Book a haircut tomorrow",
+            "conversation_history": (
+                "user: Book a haircut tomorrow\n"
+                "assistant: To book the appointment, please provide time."
+            ),
         },
     ]
     assert tool_calls == [
@@ -90,7 +93,18 @@ def test_memory_carries_slots_across_an_incomplete_booking() -> None:
     assert second_result["workflow_stage"] == "appointment_booked"
     assert second_result["conversation_history"] == [
         {"role": "user", "content": "Book a haircut tomorrow"},
+        {
+            "role": "assistant",
+            "content": "To book the appointment, please provide time.",
+        },
         {"role": "user", "content": "At 2 PM"},
+        {
+            "role": "assistant",
+            "content": (
+                "Your haircut appointment is booked for tomorrow at 2 PM. "
+                "Your appointment ID is APT-1234ABCD."
+            ),
+        },
     ]
 
 
@@ -122,7 +136,14 @@ def test_memory_isolates_conversation_threads() -> None:
     )
 
     assert second_thread["conversation_history"] == [
-        {"role": "user", "content": "Second thread message"}
+        {"role": "user", "content": "Second thread message"},
+        {
+            "role": "assistant",
+            "content": (
+                "Could you clarify whether you need business information, "
+                "appointment help, or a human specialist?"
+            ),
+        },
     ]
 
 

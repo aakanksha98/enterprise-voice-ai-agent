@@ -489,6 +489,11 @@ textarea:focus-visible,
   box-shadow: none;
 }
 
+.message--error .message__bubble {
+  border-color: #c26b64;
+  background: #fff7f6;
+}
+
 .message__bubble p {
   margin: 0;
   font-size: 15px;

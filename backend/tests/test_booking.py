@@ -96,7 +96,14 @@ def test_booking_intent_invokes_tool_and_persists_result() -> None:
             {
                 "role": "user",
                 "content": "Book a haircut tomorrow at 2 PM",
-            }
+            },
+            {
+                "role": "assistant",
+                "content": (
+                    "Your haircut appointment is booked for tomorrow at 2 PM. "
+                    "Your appointment ID is APT-1234ABCD."
+                ),
+            },
         ],
         "normalized_message": "Book a haircut tomorrow at 2 PM",
         "input_status": "valid",
@@ -117,6 +124,10 @@ def test_booking_intent_invokes_tool_and_persists_result() -> None:
             "appointment_id": "APT-1234ABCD",
             "status": "confirmed",
         },
+        "final_response": (
+            "Your haircut appointment is booked for tomorrow at 2 PM. "
+            "Your appointment ID is APT-1234ABCD."
+        ),
     }
 
 
@@ -136,6 +147,7 @@ def test_booking_route_runs_after_planning() -> None:
         "ready_for_planning",
         "planner",
         "booking",
+        "response",
     ]
 
 
@@ -155,6 +167,9 @@ def test_missing_booking_slots_skip_tool_invocation() -> None:
     assert result["workflow_stage"] == "booking_information_required"
     assert result["missing_booking_slots"] == ["time"]
     assert result["booking_result"] is None
+    assert result["final_response"] == (
+        "To book the appointment, please provide time."
+    )
 
 
 def test_booking_node_rejects_invalid_tool_result() -> None:

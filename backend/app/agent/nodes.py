@@ -73,6 +73,7 @@ def _reset_turn_outputs() -> AgentStateUpdate:
     return {
         "validation_error": None,
         "draft_response": None,
+        "final_response": None,
         "retrieval_query": None,
         "retrieved_documents": [],
         "missing_booking_slots": [],
