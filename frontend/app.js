@@ -4,12 +4,32 @@ const sendButton = document.querySelector("[data-send]");
 const characterCount = document.querySelector("[data-character-count]");
 const conversationLog = document.querySelector("#conversation-log");
 const sessionStatus = document.querySelector("[data-session-status]");
+const sessionChannel = document.querySelector("[data-session-channel]");
 const sessionIntent = document.querySelector("[data-session-intent]");
 const announcement = document.querySelector("[data-announcement]");
 const resetButton = document.querySelector("[data-reset]");
 const quickActionButtons = document.querySelectorAll("[data-prompt]");
+const voiceInputButton = document.querySelector("[data-voice-input]");
+const speakLatestButton = document.querySelector("[data-speak-latest]");
+const voiceStatus = document.querySelector("[data-voice-status]");
 
 const MAX_MESSAGE_LENGTH = Number(messageInput.maxLength);
+const SpeechRecognitionConstructor =
+  window.SpeechRecognition || window.webkitSpeechRecognition;
+
+let recognition = null;
+let isListening = false;
+let isRecognitionStarting = false;
+let isRecognitionStopping = false;
+let suppressRecognitionFeedback = false;
+let recognitionBaseText = "";
+let currentTranscript = "";
+let recognitionErrorMessage = "";
+let activeUtterance = null;
+
+const supportsSpeechSynthesis =
+  typeof window.speechSynthesis !== "undefined" &&
+  typeof window.SpeechSynthesisUtterance === "function";
 
 function resizeMessageInput() {
   messageInput.style.height = "auto";
@@ -20,10 +40,51 @@ function updateComposerState() {
   const messageLength = messageInput.value.length;
   const hasMessage = messageInput.value.trim().length > 0;
 
-  sendButton.disabled = !hasMessage;
+  sendButton.disabled = !hasMessage || isListening || isRecognitionStarting;
   characterCount.textContent = `${messageLength} / ${MAX_MESSAGE_LENGTH}`;
   characterCount.classList.toggle("is-near-limit", messageLength >= 450);
   resizeMessageInput();
+}
+
+function defaultVoiceStatus() {
+  if (recognition && supportsSpeechSynthesis) {
+    return "Voice ready";
+  }
+
+  if (recognition) {
+    return "Voice input ready";
+  }
+
+  if (supportsSpeechSynthesis) {
+    return "Read-aloud ready";
+  }
+
+  return "Voice unavailable";
+}
+
+function setVoiceStatus(message, isActive = false) {
+  voiceStatus.textContent = message;
+  voiceStatus.classList.toggle("is-active", isActive);
+}
+
+function updateVoiceControls() {
+  voiceInputButton.disabled =
+    !recognition || isRecognitionStarting || isRecognitionStopping;
+  speakLatestButton.disabled =
+    !supportsSpeechSynthesis || isListening || isRecognitionStarting;
+}
+
+function setListeningState(listening) {
+  isListening = listening;
+  voiceInputButton.classList.toggle("is-listening", listening);
+  voiceInputButton.setAttribute("aria-pressed", String(listening));
+  voiceInputButton.setAttribute(
+    "aria-label",
+    listening ? "Stop voice input" : "Start voice input",
+  );
+  voiceInputButton.title = listening ? "Stop voice input" : "Start voice input";
+  updateComposerState();
+  updateVoiceControls();
 }
 
 function formatCurrentTime() {
@@ -62,7 +123,7 @@ function createUserMessage(message) {
 function submitMessage() {
   const message = messageInput.value.trim();
 
-  if (!message) {
+  if (!message || isListening || isRecognitionStarting) {
     return;
   }
 
@@ -76,15 +137,280 @@ function submitMessage() {
   messageInput.focus();
 }
 
+function cancelSpeech() {
+  if (!supportsSpeechSynthesis) {
+    return;
+  }
+
+  activeUtterance = null;
+  window.speechSynthesis.cancel();
+}
+
+function cancelVoiceActivity() {
+  if (recognition && (isListening || isRecognitionStarting)) {
+    suppressRecognitionFeedback = true;
+
+    try {
+      recognition.abort();
+    } catch {
+      suppressRecognitionFeedback = false;
+    }
+  }
+
+  isRecognitionStarting = false;
+  isRecognitionStopping = false;
+  cancelSpeech();
+  setListeningState(false);
+  setVoiceStatus(defaultVoiceStatus());
+}
+
 function resetConversation() {
+  cancelVoiceActivity();
   document.querySelectorAll("[data-user-message]").forEach((message) => message.remove());
   messageInput.value = "";
   sessionStatus.textContent = "Ready";
+  sessionChannel.textContent = "Text";
   sessionIntent.textContent = "Not identified";
   announcement.textContent = "Conversation reset.";
   updateComposerState();
   conversationLog.scrollTo({ top: 0, behavior: "smooth" });
   messageInput.focus();
+}
+
+function combineTranscript(baseText, transcript) {
+  return [baseText, transcript]
+    .filter(Boolean)
+    .join(" ")
+    .slice(0, MAX_MESSAGE_LENGTH);
+}
+
+function recognitionErrorText(error) {
+  const messages = {
+    "audio-capture": "Microphone unavailable",
+    network: "Voice service unavailable",
+    "no-speech": "No speech detected",
+    "not-allowed": "Microphone access denied",
+    "service-not-allowed": "Voice service blocked",
+  };
+
+  return messages[error] || "Voice input failed";
+}
+
+function configureSpeechRecognition() {
+  if (!SpeechRecognitionConstructor) {
+    voiceInputButton.title = "Voice input is not supported in this browser";
+    voiceInputButton.setAttribute(
+      "aria-label",
+      "Voice input is not supported in this browser",
+    );
+    return;
+  }
+
+  try {
+    recognition = new SpeechRecognitionConstructor();
+  } catch {
+    recognition = null;
+    voiceInputButton.title = "Voice input could not be initialized";
+    voiceInputButton.setAttribute(
+      "aria-label",
+      "Voice input could not be initialized",
+    );
+    return;
+  }
+
+  recognition.continuous = false;
+  recognition.interimResults = true;
+  recognition.lang = "en-US";
+  recognition.maxAlternatives = 1;
+
+  recognition.addEventListener("start", () => {
+    isRecognitionStarting = false;
+    isRecognitionStopping = false;
+    recognitionErrorMessage = "";
+    setListeningState(true);
+    sessionChannel.textContent = "Voice";
+    setVoiceStatus("Listening", true);
+    announcement.textContent = "Voice input started.";
+  });
+
+  recognition.addEventListener("result", (event) => {
+    const finalParts = [];
+    const interimParts = [];
+
+    for (let index = 0; index < event.results.length; index += 1) {
+      const result = event.results[index];
+      const transcript = result[0]?.transcript.trim();
+
+      if (!transcript) {
+        continue;
+      }
+
+      if (result.isFinal) {
+        finalParts.push(transcript);
+      } else {
+        interimParts.push(transcript);
+      }
+    }
+
+    currentTranscript = [...finalParts, ...interimParts].join(" ");
+    messageInput.value = combineTranscript(recognitionBaseText, currentTranscript);
+    updateComposerState();
+    setVoiceStatus(finalParts.length > 0 ? "Transcript ready" : "Listening", true);
+  });
+
+  recognition.addEventListener("error", (event) => {
+    isRecognitionStarting = false;
+    recognitionErrorMessage = recognitionErrorText(event.error);
+
+    if (suppressRecognitionFeedback && event.error === "aborted") {
+      return;
+    }
+
+    setVoiceStatus(recognitionErrorMessage);
+    announcement.textContent = `${recognitionErrorMessage}.`;
+  });
+
+  recognition.addEventListener("end", () => {
+    const feedbackWasSuppressed = suppressRecognitionFeedback;
+
+    suppressRecognitionFeedback = false;
+    isRecognitionStarting = false;
+    isRecognitionStopping = false;
+    setListeningState(false);
+
+    if (feedbackWasSuppressed) {
+      setVoiceStatus(defaultVoiceStatus());
+      return;
+    }
+
+    if (recognitionErrorMessage) {
+      setVoiceStatus(recognitionErrorMessage);
+      return;
+    }
+
+    if (currentTranscript) {
+      sessionChannel.textContent = "Voice + text";
+      setVoiceStatus("Transcript ready");
+      announcement.textContent = "Voice transcript ready for review.";
+      messageInput.focus();
+      return;
+    }
+
+    setVoiceStatus("No speech detected");
+  });
+}
+
+function toggleVoiceInput() {
+  if (!recognition) {
+    return;
+  }
+
+  if (isListening) {
+    isRecognitionStopping = true;
+    setVoiceStatus("Finishing transcript", true);
+    updateVoiceControls();
+    recognition.stop();
+    return;
+  }
+
+  cancelSpeech();
+  recognitionBaseText = messageInput.value.trim();
+  currentTranscript = "";
+  recognitionErrorMessage = "";
+  suppressRecognitionFeedback = false;
+  isRecognitionStarting = true;
+  setVoiceStatus("Starting microphone", true);
+  updateComposerState();
+  updateVoiceControls();
+
+  try {
+    recognition.start();
+  } catch {
+    isRecognitionStarting = false;
+    setVoiceStatus("Voice input is already active");
+    updateComposerState();
+    updateVoiceControls();
+  }
+}
+
+function preferredVoice() {
+  const voices = window.speechSynthesis.getVoices();
+
+  return (
+    voices.find((voice) => voice.lang.toLowerCase() === "en-us") ||
+    voices.find((voice) => voice.lang.toLowerCase().startsWith("en")) ||
+    null
+  );
+}
+
+function speakLatestAssistantMessage() {
+  if (!supportsSpeechSynthesis) {
+    return;
+  }
+
+  const assistantMessages = document.querySelectorAll("[data-assistant-message]");
+  const latestMessage = assistantMessages.item(assistantMessages.length - 1);
+  const messageText = latestMessage
+    ?.querySelector(".message__bubble")
+    ?.textContent.trim();
+
+  if (!messageText) {
+    setVoiceStatus("No assistant response to read");
+    return;
+  }
+
+  cancelSpeech();
+
+  const utterance = new SpeechSynthesisUtterance(messageText);
+  const voice = preferredVoice();
+
+  utterance.lang = "en-US";
+  utterance.rate = 1;
+  utterance.pitch = 1;
+
+  if (voice) {
+    utterance.voice = voice;
+  }
+
+  activeUtterance = utterance;
+
+  utterance.addEventListener("start", () => {
+    if (activeUtterance === utterance) {
+      setVoiceStatus("Speaking", true);
+      announcement.textContent = "Reading the latest assistant response.";
+    }
+  });
+
+  utterance.addEventListener("end", () => {
+    if (activeUtterance === utterance) {
+      activeUtterance = null;
+      setVoiceStatus(defaultVoiceStatus());
+    }
+  });
+
+  utterance.addEventListener("error", () => {
+    if (activeUtterance === utterance) {
+      activeUtterance = null;
+      setVoiceStatus("Read-aloud failed");
+    }
+  });
+
+  window.speechSynthesis.speak(utterance);
+}
+
+function initializeVoiceSupport() {
+  configureSpeechRecognition();
+
+  if (!supportsSpeechSynthesis) {
+    speakLatestButton.title = "Read-aloud is not supported in this browser";
+    speakLatestButton.setAttribute(
+      "aria-label",
+      "Read-aloud is not supported in this browser",
+    );
+  }
+
+  setVoiceStatus(defaultVoiceStatus());
+  updateVoiceControls();
 }
 
 composer.addEventListener("submit", (event) => {
@@ -103,12 +429,17 @@ messageInput.addEventListener("keydown", (event) => {
 
 quickActionButtons.forEach((button) => {
   button.addEventListener("click", () => {
+    cancelVoiceActivity();
     messageInput.value = button.dataset.prompt;
+    sessionChannel.textContent = "Text";
     updateComposerState();
     messageInput.focus();
   });
 });
 
+voiceInputButton.addEventListener("click", toggleVoiceInput);
+speakLatestButton.addEventListener("click", speakLatestAssistantMessage);
 resetButton.addEventListener("click", resetConversation);
 
+initializeVoiceSupport();
 updateComposerState();
