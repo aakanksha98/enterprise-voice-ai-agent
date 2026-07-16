@@ -11,3 +11,4 @@ class AgentContext:
     planner: PlannerRunnable
     rag_retriever: RAGRetriever | None = None
     booking_tool: BaseTool | None = None
+    cancellation_tool: BaseTool | None = None

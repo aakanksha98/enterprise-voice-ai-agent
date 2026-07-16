@@ -19,6 +19,8 @@ PlannerIntent = Literal[
 ]
 BookingSlot = Literal["service", "date", "time"]
 BookingStatus = Literal["confirmed"]
+CancellationSlot = Literal["appointment_id"]
+CancellationStatus = Literal["cancelled"]
 WorkflowStage = Literal[
     "ready_for_planning",
     "planned",
@@ -26,6 +28,8 @@ WorkflowStage = Literal[
     "knowledge_retrieved",
     "booking_information_required",
     "appointment_booked",
+    "cancellation_information_required",
+    "appointment_cancelled",
     "rejected",
 ]
 
@@ -53,6 +57,11 @@ class BookingResult(TypedDict):
     time: str
 
 
+class CancellationResult(TypedDict):
+    appointment_id: str
+    status: CancellationStatus
+
+
 class AgentState(TypedDict):
     user_message: str
     normalized_message: NotRequired[str]
@@ -68,6 +77,8 @@ class AgentState(TypedDict):
     retrieved_documents: NotRequired[list[RetrievedDocument]]
     missing_booking_slots: NotRequired[list[BookingSlot]]
     booking_result: NotRequired[BookingResult | None]
+    missing_cancellation_slots: NotRequired[list[CancellationSlot]]
+    cancellation_result: NotRequired[CancellationResult | None]
 
 
 class AgentStateUpdate(TypedDict, total=False):
@@ -84,3 +95,5 @@ class AgentStateUpdate(TypedDict, total=False):
     retrieved_documents: list[RetrievedDocument]
     missing_booking_slots: list[BookingSlot]
     booking_result: BookingResult | None
+    missing_cancellation_slots: list[CancellationSlot]
+    cancellation_result: CancellationResult | None

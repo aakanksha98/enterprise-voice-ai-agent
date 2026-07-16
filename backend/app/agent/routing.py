@@ -4,7 +4,13 @@ from backend.app.agent.state import AgentState
 
 
 RouteDecision = Literal["ready", "invalid"]
-PlannedRouteDecision = Literal["faq", "rag", "booking", "deferred"]
+PlannedRouteDecision = Literal[
+    "faq",
+    "rag",
+    "booking",
+    "cancellation",
+    "deferred",
+]
 
 
 def route_validated_input(state: AgentState) -> RouteDecision:
@@ -32,5 +38,8 @@ def route_planned_intent(state: AgentState) -> PlannedRouteDecision:
 
     if detected_intent == "book_appointment":
         return "booking"
+
+    if detected_intent == "cancel_appointment":
+        return "cancellation"
 
     return "deferred"
