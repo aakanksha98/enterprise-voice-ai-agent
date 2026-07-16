@@ -28,7 +28,7 @@ def test_valid_message_is_normalized_and_planned() -> None:
     decision = PlannerDecision(
         intent="clarification",
         confidence=0.94,
-        faq_topic=None,
+        small_talk_topic=None,
         slots=PlannerSlots(
             service=None,
             date=None,
@@ -66,7 +66,7 @@ def test_valid_message_is_normalized_and_planned() -> None:
         "workflow_stage": "planned",
         "detected_intent": "clarification",
         "planner_confidence": 0.94,
-        "faq_topic": None,
+        "small_talk_topic": None,
         "extracted_slots": {},
         "final_response": (
             "Could you clarify whether you need business information, "
@@ -98,7 +98,7 @@ def test_valid_path_runs_planner_after_validation() -> None:
     decision = PlannerDecision(
         intent="clarification",
         confidence=0.9,
-        faq_topic=None,
+        small_talk_topic=None,
         slots=PlannerSlots(
             service=None,
             date=None,
@@ -137,7 +137,7 @@ def test_invalid_path_skips_planner() -> None:
 @pytest.mark.parametrize(
     "intent",
     [
-        "faq",
+        "small_talk",
         "rag",
         "book_appointment",
         "cancel_appointment",
@@ -152,7 +152,7 @@ def test_planner_schema_accepts_only_supported_intents(
     decision = PlannerDecision(
         intent=intent,
         confidence=0.8,
-        faq_topic="greeting" if intent == "faq" else None,
+        small_talk_topic="greeting" if intent == "small_talk" else None,
         slots=PlannerSlots(
             service=None,
             date=None,
@@ -170,7 +170,7 @@ def test_planner_schema_rejects_unknown_intent() -> None:
         PlannerDecision(
             intent="weather",
             confidence=0.8,
-            faq_topic=None,
+            small_talk_topic=None,
             slots=PlannerSlots(
                 service=None,
                 date=None,
@@ -189,7 +189,7 @@ def test_planner_schema_rejects_out_of_range_confidence(
         PlannerDecision(
             intent="clarification",
             confidence=confidence,
-            faq_topic=None,
+            small_talk_topic=None,
             slots=PlannerSlots(
                 service=None,
                 date=None,

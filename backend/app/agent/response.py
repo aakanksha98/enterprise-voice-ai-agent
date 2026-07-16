@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 from collections.abc import Callable
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Final
 
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
@@ -10,7 +10,7 @@ from langchain_core.runnables import Runnable
 from langchain_openai import ChatOpenAI
 from langgraph.runtime import Runtime
 
-from backend.app.agent.state import AgentState, AgentStateUpdate
+from backend.app.agent.state import AgentState, AgentStateUpdate, SmallTalkTopic
 
 
 if TYPE_CHECKING:
@@ -19,6 +19,17 @@ if TYPE_CHECKING:
 
 DEFAULT_RESPONSE_MODEL = "gpt-5.4-mini"
 ResponseRunnable = Runnable[dict[str, str], str]
+
+
+SMALL_TALK_RESPONSES: Final[dict[SmallTalkTopic, str]] = {
+    "greeting": "Hello. How can I help with an appointment or business question today?",
+    "assistant_identity": "I'm Aster, an AI reception assistant.",
+    "capabilities": (
+        "I can help with business questions, appointment booking, cancellation, "
+        "rescheduling, or connecting you with a person."
+    ),
+    "courtesy": "You're welcome. Is there anything else I can help with?",
+}
 
 
 RAG_RESPONSE_PROMPT = ChatPromptTemplate.from_messages(
@@ -75,7 +86,6 @@ def _select_response(
     workflow_stage = state.get("workflow_stage")
     response_builders: dict[str, Callable[[AgentState], str]] = {
         "rejected": _invalid_input_response,
-        "faq_answered": _faq_response,
         "booking_information_required": _booking_information_response,
         "appointment_booked": _booking_confirmation_response,
         "cancellation_information_required": _cancellation_information_response,
@@ -83,7 +93,7 @@ def _select_response(
         "reschedule_information_required": _reschedule_information_response,
         "appointment_rescheduled": _reschedule_confirmation_response,
         "human_escalation_queued": _escalation_response,
-        "planned": _clarification_response,
+        "planned": _planned_response,
     }
 
     if workflow_stage == "knowledge_retrieved":
@@ -122,11 +132,17 @@ def _invalid_input_response(_: AgentState) -> str:
     return "Please say or enter a request so I can help."
 
 
-def _faq_response(state: AgentState) -> str:
-    draft_response = state.get("draft_response")
-    if not draft_response:
-        raise ValueError("FAQ response text is required")
-    return draft_response
+def _planned_response(state: AgentState) -> str:
+    if state.get("detected_intent") == "clarification":
+        return _clarification_response(state)
+
+    if state.get("detected_intent") != "small_talk":
+        raise ValueError("Planned response requires small talk or clarification")
+
+    topic = state.get("small_talk_topic")
+    if topic is None:
+        raise ValueError("Small-talk topic is required")
+    return SMALL_TALK_RESPONSES[topic]
 
 
 def _booking_information_response(state: AgentState) -> str:

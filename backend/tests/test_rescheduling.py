@@ -24,7 +24,7 @@ def reschedule_decision(
     return PlannerDecision(
         intent="reschedule_appointment",
         confidence=0.95,
-        faq_topic=None,
+        small_talk_topic=None,
         slots=PlannerSlots(
             service=None,
             date=date,

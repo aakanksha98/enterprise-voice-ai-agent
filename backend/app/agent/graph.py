@@ -7,7 +7,6 @@ from backend.app.agent.booking import execute_booking
 from backend.app.agent.cancellation import execute_cancellation
 from backend.app.agent.context import AgentContext
 from backend.app.agent.escalation import execute_human_escalation
-from backend.app.agent.faq import answer_faq
 from backend.app.agent.nodes import (
     mark_ready_for_planning,
     plan_request,
@@ -30,7 +29,6 @@ def build_agent_graph(
     graph_builder.add_node("ready_for_planning", mark_ready_for_planning)
     graph_builder.add_node("reject_invalid_input", reject_invalid_input)
     graph_builder.add_node("planner", plan_request)
-    graph_builder.add_node("faq", answer_faq)
     graph_builder.add_node("rag", retrieve_business_knowledge)
     graph_builder.add_node("booking", execute_booking)
     graph_builder.add_node("cancellation", execute_cancellation)
@@ -52,7 +50,7 @@ def build_agent_graph(
         "planner",
         route_planned_intent,
         {
-            "faq": "faq",
+            "small_talk": "response",
             "rag": "rag",
             "booking": "booking",
             "cancellation": "cancellation",
@@ -61,7 +59,6 @@ def build_agent_graph(
             "deferred": "response",
         },
     )
-    graph_builder.add_edge("faq", "response")
     graph_builder.add_edge("rag", "response")
     graph_builder.add_edge("booking", "response")
     graph_builder.add_edge("cancellation", "response")

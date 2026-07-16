@@ -3,14 +3,14 @@ from typing import Annotated, Literal, NotRequired, TypedDict
 
 
 InputStatus = Literal["valid", "invalid"]
-FAQTopic = Literal[
+SmallTalkTopic = Literal[
     "greeting",
     "assistant_identity",
     "capabilities",
     "courtesy",
 ]
 PlannerIntent = Literal[
-    "faq",
+    "small_talk",
     "rag",
     "book_appointment",
     "cancel_appointment",
@@ -29,7 +29,6 @@ ConversationRole = Literal["user", "assistant"]
 WorkflowStage = Literal[
     "ready_for_planning",
     "planned",
-    "faq_answered",
     "knowledge_retrieved",
     "booking_information_required",
     "appointment_booked",
@@ -98,8 +97,7 @@ class AgentState(TypedDict):
     detected_intent: NotRequired[PlannerIntent]
     planner_confidence: NotRequired[float]
     extracted_slots: NotRequired[ExtractedSlots]
-    faq_topic: NotRequired[FAQTopic | None]
-    draft_response: NotRequired[str | None]
+    small_talk_topic: NotRequired[SmallTalkTopic | None]
     final_response: NotRequired[str | None]
     retrieval_query: NotRequired[str | None]
     retrieved_documents: NotRequired[list[RetrievedDocument]]
@@ -122,8 +120,7 @@ class AgentStateUpdate(TypedDict, total=False):
     detected_intent: PlannerIntent
     planner_confidence: float
     extracted_slots: ExtractedSlots
-    faq_topic: FAQTopic | None
-    draft_response: str | None
+    small_talk_topic: SmallTalkTopic | None
     final_response: str | None
     retrieval_query: str | None
     retrieved_documents: list[RetrievedDocument]

@@ -34,7 +34,7 @@ def conversation_client(
     decision = PlannerDecision(
         intent="clarification",
         confidence=0.8,
-        faq_topic=None,
+        small_talk_topic=None,
         slots=PlannerSlots(
             service=None,
             date=None,
@@ -108,7 +108,7 @@ def test_conversation_endpoint_returns_tool_reference() -> None:
     decision = PlannerDecision(
         intent="book_appointment",
         confidence=0.98,
-        faq_topic=None,
+        small_talk_topic=None,
         slots=PlannerSlots(
             service="haircut",
             date="Friday",

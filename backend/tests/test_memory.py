@@ -17,7 +17,7 @@ def booking_decision(
     return PlannerDecision(
         intent="book_appointment",
         confidence=0.95,
-        faq_topic=None,
+        small_talk_topic=None,
         slots=PlannerSlots(
             service=service,
             date=date,
@@ -113,7 +113,7 @@ def test_memory_isolates_conversation_threads() -> None:
     decision = PlannerDecision(
         intent="clarification",
         confidence=0.8,
-        faq_topic=None,
+        small_talk_topic=None,
         slots=PlannerSlots(
             service=None,
             date=None,
@@ -158,9 +158,9 @@ def test_new_turn_clears_stale_terminal_outputs() -> None:
     decisions = iter(
         [
             PlannerDecision(
-                intent="faq",
+                intent="small_talk",
                 confidence=0.98,
-                faq_topic="greeting",
+                small_talk_topic="greeting",
                 slots=PlannerSlots(
                     service=None,
                     date=None,
@@ -172,7 +172,7 @@ def test_new_turn_clears_stale_terminal_outputs() -> None:
             PlannerDecision(
                 intent="clarification",
                 confidence=0.7,
-                faq_topic=None,
+                small_talk_topic=None,
                 slots=PlannerSlots(
                     service=None,
                     date=None,
@@ -198,8 +198,8 @@ def test_new_turn_clears_stale_terminal_outputs() -> None:
         config=config,
     )
 
-    assert first_result["draft_response"]
+    assert first_result["small_talk_topic"] == "greeting"
     assert second_result["workflow_stage"] == "planned"
-    assert second_result["draft_response"] is None
+    assert second_result["small_talk_topic"] is None
     assert second_result["retrieved_documents"] == []
     assert second_result["escalation_result"] is None

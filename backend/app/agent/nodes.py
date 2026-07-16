@@ -72,7 +72,6 @@ def reject_invalid_input(state: AgentState) -> AgentStateUpdate:
 def _reset_turn_outputs() -> AgentStateUpdate:
     return {
         "validation_error": None,
-        "draft_response": None,
         "final_response": None,
         "retrieval_query": None,
         "retrieved_documents": [],
@@ -114,7 +113,7 @@ def plan_request(
         "detected_intent": decision.intent,
         "planner_confidence": decision.confidence,
         "extracted_slots": extracted_slots,
-        "faq_topic": decision.faq_topic,
+        "small_talk_topic": decision.small_talk_topic,
     }
 
 

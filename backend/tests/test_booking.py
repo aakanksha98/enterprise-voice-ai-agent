@@ -22,7 +22,7 @@ def booking_decision(
     return PlannerDecision(
         intent="book_appointment",
         confidence=0.96,
-        faq_topic=None,
+        small_talk_topic=None,
         slots=PlannerSlots(
             service=service,
             date=date,
@@ -115,7 +115,7 @@ def test_booking_intent_invokes_tool_and_persists_result() -> None:
             "date": "tomorrow",
             "time": "2 PM",
         },
-        "faq_topic": None,
+        "small_talk_topic": None,
         "missing_booking_slots": [],
         "booking_result": {
             "service": "haircut",

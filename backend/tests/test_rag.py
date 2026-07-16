@@ -12,7 +12,7 @@ def rag_decision() -> PlannerDecision:
     return PlannerDecision(
         intent="rag",
         confidence=0.93,
-        faq_topic=None,
+        small_talk_topic=None,
         slots=PlannerSlots(
             service=None,
             date=None,
@@ -75,7 +75,7 @@ def test_rag_intent_retrieves_and_serializes_business_knowledge() -> None:
         "detected_intent": "rag",
         "planner_confidence": 0.93,
         "extracted_slots": {},
-        "faq_topic": None,
+        "small_talk_topic": None,
         "retrieval_query": "What does a haircut cost?",
         "retrieved_documents": [
             {

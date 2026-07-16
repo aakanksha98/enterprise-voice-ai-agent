@@ -21,7 +21,7 @@ def cancellation_decision(
     return PlannerDecision(
         intent="cancel_appointment",
         confidence=0.97,
-        faq_topic=None,
+        small_talk_topic=None,
         slots=PlannerSlots(
             service=None,
             date=None,
