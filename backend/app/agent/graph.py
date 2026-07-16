@@ -4,6 +4,7 @@ from langgraph.graph.state import CompiledStateGraph
 from backend.app.agent.booking import execute_booking
 from backend.app.agent.cancellation import execute_cancellation
 from backend.app.agent.context import AgentContext
+from backend.app.agent.escalation import execute_human_escalation
 from backend.app.agent.faq import answer_faq
 from backend.app.agent.nodes import (
     mark_ready_for_planning,
@@ -29,6 +30,7 @@ def build_agent_graph() -> CompiledStateGraph:
     graph_builder.add_node("booking", execute_booking)
     graph_builder.add_node("cancellation", execute_cancellation)
     graph_builder.add_node("reschedule", execute_reschedule)
+    graph_builder.add_node("escalation", execute_human_escalation)
 
     graph_builder.add_edge(START, "validate_input")
     graph_builder.add_conditional_edges(
@@ -49,6 +51,7 @@ def build_agent_graph() -> CompiledStateGraph:
             "booking": "booking",
             "cancellation": "cancellation",
             "reschedule": "reschedule",
+            "escalation": "escalation",
             "deferred": END,
         },
     )
@@ -57,6 +60,7 @@ def build_agent_graph() -> CompiledStateGraph:
     graph_builder.add_edge("booking", END)
     graph_builder.add_edge("cancellation", END)
     graph_builder.add_edge("reschedule", END)
+    graph_builder.add_edge("escalation", END)
     graph_builder.add_edge("reject_invalid_input", END)
 
     return graph_builder.compile(name="enterprise_voice_agent")

@@ -13,3 +13,4 @@ class AgentContext:
     booking_tool: BaseTool | None = None
     cancellation_tool: BaseTool | None = None
     reschedule_tool: BaseTool | None = None
+    escalation_tool: BaseTool | None = None

@@ -1,0 +1,165 @@
+import re
+from typing import Any
+
+import pytest
+from langchain_core.runnables import RunnableLambda
+from langchain_core.tools import BaseTool, tool
+from pydantic import ValidationError
+
+from backend.app.agent.context import AgentContext
+from backend.app.agent.graph import agent_graph
+from backend.app.agent.planner import PlannerDecision, PlannerSlots
+from backend.app.agent.routing import route_planned_intent
+from backend.app.tools.escalation import (
+    HumanEscalationRequest,
+    mock_human_escalation_tool,
+)
+
+
+def escalation_decision(
+    reason: str | None = "The billing issue is unresolved",
+) -> PlannerDecision:
+    return PlannerDecision(
+        intent="human_escalation",
+        confidence=0.99,
+        faq_topic=None,
+        slots=PlannerSlots(
+            service=None,
+            date=None,
+            time=None,
+            appointment_id=None,
+            escalation_reason=reason,
+        ),
+    )
+
+
+def create_recording_escalation_tool(
+    calls: list[dict[str, str | None]],
+    result: object | None = None,
+) -> BaseTool:
+    @tool("record_human_escalation", args_schema=HumanEscalationRequest)
+    def record_human_escalation(reason: str | None = None) -> Any:
+        """Record a human escalation request for a deterministic test."""
+        calls.append({"reason": reason})
+        if result is not None:
+            return result
+
+        return {
+            "escalation_id": "ESC-1234ABCD",
+            "status": "queued",
+            "reason": reason,
+        }
+
+    return record_human_escalation
+
+
+def test_mock_escalation_tool_returns_queued_confirmation() -> None:
+    result = mock_human_escalation_tool.invoke(
+        {"reason": " The billing issue is unresolved "}
+    )
+
+    assert mock_human_escalation_tool.name == "escalate_to_human"
+    assert re.fullmatch(r"ESC-[0-9A-F]{8}", result["escalation_id"])
+    assert result == {
+        "reason": "The billing issue is unresolved",
+        "escalation_id": result["escalation_id"],
+        "status": "queued",
+    }
+
+
+def test_escalation_intent_invokes_tool_and_persists_result() -> None:
+    tool_calls: list[dict[str, str | None]] = []
+    context = AgentContext(
+        planner=RunnableLambda(lambda _: escalation_decision()),
+        escalation_tool=create_recording_escalation_tool(tool_calls),
+    )
+
+    result = agent_graph.invoke(
+        {"user_message": "Let me speak to someone about this billing issue"},
+        context=context,
+    )
+
+    assert tool_calls == [{"reason": "The billing issue is unresolved"}]
+    assert result["workflow_stage"] == "human_escalation_queued"
+    assert result["escalation_result"] == {
+        "reason": "The billing issue is unresolved",
+        "escalation_id": "ESC-1234ABCD",
+        "status": "queued",
+    }
+
+
+def test_escalation_without_reason_still_queues_handoff() -> None:
+    tool_calls: list[dict[str, str | None]] = []
+    context = AgentContext(
+        planner=RunnableLambda(lambda _: escalation_decision(None)),
+        escalation_tool=create_recording_escalation_tool(tool_calls),
+    )
+
+    result = agent_graph.invoke(
+        {"user_message": "I want to speak to a person"},
+        context=context,
+    )
+
+    assert tool_calls == [{"reason": None}]
+    assert result["escalation_result"]["reason"] is None
+    assert result["escalation_result"]["status"] == "queued"
+
+
+def test_escalation_route_runs_after_planning() -> None:
+    context = AgentContext(
+        planner=RunnableLambda(lambda _: escalation_decision()),
+        escalation_tool=create_recording_escalation_tool([]),
+    )
+    updates = agent_graph.stream(
+        {"user_message": "Let me speak to someone"},
+        context=context,
+        stream_mode="updates",
+    )
+
+    assert [next(iter(update)) for update in updates] == [
+        "validate_input",
+        "ready_for_planning",
+        "planner",
+        "escalation",
+    ]
+
+
+def test_escalation_node_rejects_invalid_tool_result() -> None:
+    context = AgentContext(
+        planner=RunnableLambda(lambda _: escalation_decision()),
+        escalation_tool=create_recording_escalation_tool(
+            [],
+            {
+                "escalation_id": "ESC-1234ABCD",
+                "status": "connected",
+                "reason": "The billing issue is unresolved",
+            },
+        ),
+    )
+
+    with pytest.raises(ValidationError):
+        agent_graph.invoke(
+            {"user_message": "Let me speak to someone"},
+            context=context,
+        )
+
+
+def test_escalation_requires_tool_context() -> None:
+    context = AgentContext(
+        planner=RunnableLambda(lambda _: escalation_decision()),
+    )
+
+    with pytest.raises(RuntimeError, match="escalation tool context is required"):
+        agent_graph.invoke(
+            {"user_message": "Let me speak to someone"},
+            context=context,
+        )
+
+
+def test_planned_intent_router_selects_escalation_route() -> None:
+    assert route_planned_intent(
+        {
+            "user_message": "Let me speak to someone",
+            "detected_intent": "human_escalation",
+        }
+    ) == "escalation"

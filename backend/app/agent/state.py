@@ -23,6 +23,7 @@ CancellationSlot = Literal["appointment_id"]
 CancellationStatus = Literal["cancelled"]
 RescheduleSlot = Literal["appointment_id", "date", "time"]
 RescheduleStatus = Literal["rescheduled"]
+EscalationStatus = Literal["queued"]
 WorkflowStage = Literal[
     "ready_for_planning",
     "planned",
@@ -34,6 +35,7 @@ WorkflowStage = Literal[
     "appointment_cancelled",
     "reschedule_information_required",
     "appointment_rescheduled",
+    "human_escalation_queued",
     "rejected",
 ]
 
@@ -73,6 +75,12 @@ class RescheduleResult(TypedDict):
     new_time: str
 
 
+class EscalationResult(TypedDict):
+    escalation_id: str
+    status: EscalationStatus
+    reason: str | None
+
+
 class AgentState(TypedDict):
     user_message: str
     normalized_message: NotRequired[str]
@@ -92,6 +100,7 @@ class AgentState(TypedDict):
     cancellation_result: NotRequired[CancellationResult | None]
     missing_reschedule_slots: NotRequired[list[RescheduleSlot]]
     reschedule_result: NotRequired[RescheduleResult | None]
+    escalation_result: NotRequired[EscalationResult]
 
 
 class AgentStateUpdate(TypedDict, total=False):
@@ -112,3 +121,4 @@ class AgentStateUpdate(TypedDict, total=False):
     cancellation_result: CancellationResult | None
     missing_reschedule_slots: list[RescheduleSlot]
     reschedule_result: RescheduleResult | None
+    escalation_result: EscalationResult

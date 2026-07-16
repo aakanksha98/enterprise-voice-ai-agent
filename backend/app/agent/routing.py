@@ -10,6 +10,7 @@ PlannedRouteDecision = Literal[
     "booking",
     "cancellation",
     "reschedule",
+    "escalation",
     "deferred",
 ]
 
@@ -45,5 +46,8 @@ def route_planned_intent(state: AgentState) -> PlannedRouteDecision:
 
     if detected_intent == "reschedule_appointment":
         return "reschedule"
+
+    if detected_intent == "human_escalation":
+        return "escalation"
 
     return "deferred"

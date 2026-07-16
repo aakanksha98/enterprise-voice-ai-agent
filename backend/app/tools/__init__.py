@@ -13,6 +13,11 @@ from backend.app.tools.rescheduling import (
     RescheduleRequest,
     mock_reschedule_tool,
 )
+from backend.app.tools.escalation import (
+    HumanEscalationConfirmation,
+    HumanEscalationRequest,
+    mock_human_escalation_tool,
+)
 
 
 __all__ = [
@@ -20,9 +25,12 @@ __all__ = [
     "BookingRequest",
     "CancellationConfirmation",
     "CancellationRequest",
+    "HumanEscalationConfirmation",
+    "HumanEscalationRequest",
     "RescheduleConfirmation",
     "RescheduleRequest",
     "mock_booking_tool",
     "mock_cancellation_tool",
+    "mock_human_escalation_tool",
     "mock_reschedule_tool",
 ]
