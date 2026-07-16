@@ -53,6 +53,9 @@ def test_rag_intent_retrieves_and_serializes_business_knowledge() -> None:
     assert retrieval_queries == ["What does a haircut cost?"]
     assert result == {
         "user_message": "  What does a haircut cost?  ",
+        "conversation_history": [
+            {"role": "user", "content": "What does a haircut cost?"}
+        ],
         "normalized_message": "What does a haircut cost?",
         "input_status": "valid",
         "workflow_stage": "knowledge_retrieved",

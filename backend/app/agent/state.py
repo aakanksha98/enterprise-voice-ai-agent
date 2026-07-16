@@ -1,4 +1,5 @@
-from typing import Literal, NotRequired, TypedDict
+from operator import add
+from typing import Annotated, Literal, NotRequired, TypedDict
 
 
 InputStatus = Literal["valid", "invalid"]
@@ -24,6 +25,7 @@ CancellationStatus = Literal["cancelled"]
 RescheduleSlot = Literal["appointment_id", "date", "time"]
 RescheduleStatus = Literal["rescheduled"]
 EscalationStatus = Literal["queued"]
+ConversationRole = Literal["user", "assistant"]
 WorkflowStage = Literal[
     "ready_for_planning",
     "planned",
@@ -81,18 +83,24 @@ class EscalationResult(TypedDict):
     reason: str | None
 
 
+class ConversationTurn(TypedDict):
+    role: ConversationRole
+    content: str
+
+
 class AgentState(TypedDict):
     user_message: str
+    conversation_history: Annotated[list[ConversationTurn], add]
     normalized_message: NotRequired[str]
     input_status: NotRequired[InputStatus]
     workflow_stage: NotRequired[WorkflowStage]
-    validation_error: NotRequired[str]
+    validation_error: NotRequired[str | None]
     detected_intent: NotRequired[PlannerIntent]
     planner_confidence: NotRequired[float]
     extracted_slots: NotRequired[ExtractedSlots]
     faq_topic: NotRequired[FAQTopic | None]
-    draft_response: NotRequired[str]
-    retrieval_query: NotRequired[str]
+    draft_response: NotRequired[str | None]
+    retrieval_query: NotRequired[str | None]
     retrieved_documents: NotRequired[list[RetrievedDocument]]
     missing_booking_slots: NotRequired[list[BookingSlot]]
     booking_result: NotRequired[BookingResult | None]
@@ -100,20 +108,22 @@ class AgentState(TypedDict):
     cancellation_result: NotRequired[CancellationResult | None]
     missing_reschedule_slots: NotRequired[list[RescheduleSlot]]
     reschedule_result: NotRequired[RescheduleResult | None]
-    escalation_result: NotRequired[EscalationResult]
+    escalation_result: NotRequired[EscalationResult | None]
+    previous_workflow_stage: NotRequired[WorkflowStage | None]
 
 
 class AgentStateUpdate(TypedDict, total=False):
     normalized_message: str
+    conversation_history: list[ConversationTurn]
     input_status: InputStatus
     workflow_stage: WorkflowStage
-    validation_error: str
+    validation_error: str | None
     detected_intent: PlannerIntent
     planner_confidence: float
     extracted_slots: ExtractedSlots
     faq_topic: FAQTopic | None
-    draft_response: str
-    retrieval_query: str
+    draft_response: str | None
+    retrieval_query: str | None
     retrieved_documents: list[RetrievedDocument]
     missing_booking_slots: list[BookingSlot]
     booking_result: BookingResult | None
@@ -121,4 +131,5 @@ class AgentStateUpdate(TypedDict, total=False):
     cancellation_result: CancellationResult | None
     missing_reschedule_slots: list[RescheduleSlot]
     reschedule_result: RescheduleResult | None
-    escalation_result: EscalationResult
+    escalation_result: EscalationResult | None
+    previous_workflow_stage: WorkflowStage | None

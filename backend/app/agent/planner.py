@@ -73,11 +73,20 @@ Choose exactly one route:
 For faq, set faq_topic to greeting, assistant_identity, capabilities, or
 courtesy. For every other route, set faq_topic to null.
 
-Extract only details explicitly present in the request. Preserve date and time
-phrases as spoken. Do not answer the request and do not call any tool. Return a
+Extract only details explicitly present in the current request or its relevant
+unfinished prior request. Preserve date and time phrases as spoken. Use prior
+conversation only to resolve a direct follow-up. Do not carry details into an
+unrelated request. Do not answer the request and do not call any tool. Return a
 confidence between 0 and 1 for the route selection.""",
         ),
-        ("human", "Classify this request:\n{user_message}"),
+        (
+            "human",
+            """Prior conversation:
+{conversation_history}
+
+Classify the current request:
+{user_message}""",
+        ),
     ]
 )
 

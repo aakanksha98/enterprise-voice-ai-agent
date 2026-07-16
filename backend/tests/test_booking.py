@@ -92,6 +92,12 @@ def test_booking_intent_invokes_tool_and_persists_result() -> None:
     ]
     assert result == {
         "user_message": "Book a haircut tomorrow at 2 PM",
+        "conversation_history": [
+            {
+                "role": "user",
+                "content": "Book a haircut tomorrow at 2 PM",
+            }
+        ],
         "normalized_message": "Book a haircut tomorrow at 2 PM",
         "input_status": "valid",
         "workflow_stage": "appointment_booked",

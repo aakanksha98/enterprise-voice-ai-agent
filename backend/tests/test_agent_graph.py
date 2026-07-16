@@ -43,9 +43,17 @@ def test_valid_message_is_normalized_and_planned() -> None:
         context=planner_context(decision, planner_inputs.append),
     )
 
-    assert planner_inputs == [{"user_message": "Please help me"}]
+    assert planner_inputs == [
+        {
+            "user_message": "Please help me",
+            "conversation_history": "No prior conversation.",
+        }
+    ]
     assert result == {
         "user_message": "  Please help me  ",
+        "conversation_history": [
+            {"role": "user", "content": "Please help me"}
+        ],
         "normalized_message": "Please help me",
         "input_status": "valid",
         "workflow_stage": "planned",
@@ -61,6 +69,7 @@ def test_empty_message_routes_to_rejection_without_calling_planner() -> None:
 
     assert result == {
         "user_message": "   ",
+        "conversation_history": [],
         "normalized_message": "",
         "input_status": "invalid",
         "workflow_stage": "rejected",

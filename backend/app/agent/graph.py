@@ -1,3 +1,5 @@
+from langgraph.checkpoint.base import BaseCheckpointSaver
+from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
@@ -18,7 +20,9 @@ from backend.app.agent.routing import route_planned_intent, route_validated_inpu
 from backend.app.agent.state import AgentState
 
 
-def build_agent_graph() -> CompiledStateGraph:
+def build_agent_graph(
+    checkpointer: BaseCheckpointSaver | None = None,
+) -> CompiledStateGraph:
     graph_builder = StateGraph(AgentState, context_schema=AgentContext)
 
     graph_builder.add_node("validate_input", validate_input)
@@ -63,7 +67,14 @@ def build_agent_graph() -> CompiledStateGraph:
     graph_builder.add_edge("escalation", END)
     graph_builder.add_edge("reject_invalid_input", END)
 
-    return graph_builder.compile(name="enterprise_voice_agent")
+    return graph_builder.compile(
+        checkpointer=checkpointer,
+        name="enterprise_voice_agent",
+    )
+
+
+def build_memory_agent_graph() -> CompiledStateGraph:
+    return build_agent_graph(checkpointer=InMemorySaver())
 
 
 agent_graph = build_agent_graph()
