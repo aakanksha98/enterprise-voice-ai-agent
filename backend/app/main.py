@@ -9,7 +9,12 @@ from backend.app.routes.health import router as health_router
 
 
 API_PREFIX = "/api/v1"
-FRONTEND_DIRECTORY = Path(__file__).resolve().parents[2] / "frontend"
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+FRONTEND_DIRECTORY = (
+    PROJECT_ROOT / "public"
+    if (PROJECT_ROOT / "public").exists()
+    else PROJECT_ROOT / "frontend"
+)
 
 
 def create_app() -> FastAPI:

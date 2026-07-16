@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta
+      name="description"
+      content="Enterprise Voice AI Agent reception workspace"
+    >
+    <title>Enterprise Voice AI Agent</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <a class="skip-link" href="#conversation-log">Skip to conversation</a>
+
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="brand" aria-label="Enterprise Voice AI Agent">
+          <span class="brand-mark" aria-hidden="true">
+            <span></span>
+            <span></span>
+            <span></span>
+            <span></span>
+            <span></span>
+          </span>
+          <span class="brand-copy">
+            <strong>Enterprise Voice AI Agent</strong>
+            <span>Reception workspace</span>
+          </span>
+        </div>
+
+        <div class="topbar-actions">
+          <span class="system-status">
+            <span class="status-dot" aria-hidden="true"></span>
+            Demo ready
+          </span>
+          <button class="button button--secondary" type="button" data-reset>
+            Reset conversation
+          </button>
+        </div>
+      </header>
+
+      <main class="workspace">
+        <aside class="session-panel" aria-labelledby="session-title">
+          <div class="session-panel__header">
+            <p class="eyebrow">Workspace</p>
+            <h2 id="session-title">Session</h2>
+          </div>
+
+          <form class="profile-form" data-profile-form>
+            <div class="field-group">
+              <label for="business-type">Business type</label>
+              <select id="business-type" name="business_type" data-business-type>
+                <option value="dental">Dental Clinic</option>
+                <option value="salon">Salon</option>
+                <option value="auto_repair">Auto Repair Shop</option>
+              </select>
+            </div>
+
+            <div class="field-group">
+              <label for="business-name">Business name</label>
+              <input
+                id="business-name"
+                name="business_name"
+                type="text"
+                maxlength="80"
+                value="BrightSmile Dental"
+                data-business-name
+              >
+            </div>
+
+            <button class="button button--primary profile-form__submit" type="submit">
+              Start demo
+            </button>
+          </form>
+
+          <dl class="session-details">
+            <div>
+              <dt>Status</dt>
+              <dd>
+                <span class="status-dot" aria-hidden="true"></span>
+                <span data-session-status>Setup required</span>
+              </dd>
+            </div>
+            <div>
+              <dt>Channel</dt>
+              <dd data-session-channel>Text</dd>
+            </div>
+            <div>
+              <dt>Business</dt>
+              <dd data-session-business>Not selected</dd>
+            </div>
+            <div>
+              <dt>Intent</dt>
+              <dd data-session-intent>Not identified</dd>
+            </div>
+          </dl>
+
+          <section class="context-panel" aria-labelledby="context-title">
+            <h3 id="context-title">Collected context</h3>
+            <dl class="context-list">
+              <div>
+                <dt>Profile</dt>
+                <dd data-context-business>Not selected</dd>
+              </div>
+              <div>
+                <dt>Service</dt>
+                <dd data-context-service>Not selected</dd>
+              </div>
+              <div>
+                <dt>Appointment</dt>
+                <dd data-context-appointment>No details</dd>
+              </div>
+            </dl>
+          </section>
+        </aside>
+
+        <section class="conversation-panel" aria-labelledby="conversation-title">
+          <header class="conversation-header">
+            <div>
+              <p class="eyebrow">Live conversation</p>
+              <h1 id="conversation-title">Reception desk</h1>
+            </div>
+
+            <div class="agent-identity" aria-label="Assistant identity">
+              <span class="agent-avatar" aria-hidden="true">AI</span>
+              <span>
+                <strong>Aster</strong>
+                <small>Service assistant</small>
+              </span>
+            </div>
+          </header>
+
+          <div
+            class="conversation-log"
+            id="conversation-log"
+            role="log"
+            aria-live="polite"
+            aria-relevant="additions"
+            tabindex="-1"
+          >
+            <div class="date-divider"><span>Today</span></div>
+
+            <article class="message message--assistant" data-assistant-message>
+              <span class="agent-avatar message__avatar" aria-hidden="true">AI</span>
+              <div class="message__content">
+                <div class="message__meta">
+                  <strong>Aster</strong>
+                  <time>Now</time>
+                </div>
+                <div class="message__bubble">
+                  <p data-initial-assistant-text>Choose a demo business profile to begin.</p>
+                </div>
+              </div>
+            </article>
+          </div>
+
+          <section class="quick-actions" aria-labelledby="quick-actions-title">
+            <h2 id="quick-actions-title">Common requests</h2>
+            <div class="quick-actions__grid">
+              <button type="button" data-prompt="I would like to book an appointment." disabled>
+                Book appointment
+              </button>
+              <button type="button" data-prompt="What services and pricing do you offer?" disabled>
+                Services and pricing
+              </button>
+              <button type="button" data-prompt="What is your cancellation policy?" disabled>
+                Cancellation policy
+              </button>
+              <button type="button" data-prompt="I need to speak with a person." disabled>
+                Speak with a person
+              </button>
+            </div>
+          </section>
+
+          <div class="composer-region">
+            <form class="composer" data-composer>
+              <label class="visually-hidden" for="message-input">Message</label>
+              <textarea
+                id="message-input"
+                name="message"
+                rows="1"
+                maxlength="500"
+                placeholder="Message the reception desk"
+                autocomplete="off"
+                data-message-input
+              ></textarea>
+              <div class="composer__footer">
+                <div class="voice-controls">
+                  <button
+                    class="icon-button"
+                    type="button"
+                    aria-label="Start voice input"
+                    aria-pressed="false"
+                    title="Start voice input"
+                    disabled
+                    data-voice-input
+                  >
+                    <svg
+                      aria-hidden="true"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
+                      <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                      <path d="M12 19v3"></path>
+                    </svg>
+                  </button>
+                  <button
+                    class="icon-button"
+                    type="button"
+                    aria-label="Read latest assistant response"
+                    title="Read latest assistant response"
+                    disabled
+                    data-speak-latest
+                  >
+                    <svg
+                      aria-hidden="true"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <path d="M11 5 6 9H2v6h4l5 4V5Z"></path>
+                      <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                      <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+                    </svg>
+                  </button>
+                  <span class="voice-status" role="status" data-voice-status>
+                    Checking voice support
+                  </span>
+                </div>
+
+                <div class="composer-actions">
+                  <span class="character-count" data-character-count>0 / 500</span>
+                  <button class="button button--primary" type="submit" disabled data-send>
+                    Send
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <p class="visually-hidden" role="status" aria-live="polite" data-announcement></p>
+
+    <script src="app.js"></script>
+  </body>
+</html>

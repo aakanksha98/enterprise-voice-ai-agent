@@ -1,12 +1,11 @@
-from dataclasses import dataclass
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from functools import lru_cache
-from typing import cast
+from typing import Any, cast
 
 from langgraph.graph.state import CompiledStateGraph
 
 from backend.app.agent.context import AgentContext
-from backend.app.agent.graph import build_memory_agent_graph
+from backend.app.agent.graph import build_agent_graph
 from backend.app.agent.planner import create_openai_planner
 from backend.app.agent.response import create_openai_response_generator
 from backend.app.agent.state import AgentState
@@ -16,6 +15,7 @@ from backend.app.business_profiles import (
     get_business_profile,
     sanitize_business_name,
 )
+from backend.app.checkpointing import create_checkpointer
 from backend.app.config import load_local_env
 from backend.app.rag.retriever import create_neon_retriever
 from backend.app.tools.booking import mock_booking_tool
@@ -28,6 +28,7 @@ from backend.app.tools.rescheduling import mock_reschedule_tool
 class ConversationService:
     graph: CompiledStateGraph
     context: AgentContext
+    checkpoint_manager: Any | None = None
 
     def respond(
         self,
@@ -57,6 +58,7 @@ class ConversationService:
 @lru_cache(maxsize=1)
 def get_conversation_service() -> ConversationService:
     load_local_env()
+    checkpointer_resource = create_checkpointer()
     context = AgentContext(
         planner=create_openai_planner(),
         rag_retriever=create_neon_retriever(),
@@ -67,6 +69,7 @@ def get_conversation_service() -> ConversationService:
         response_generator=create_openai_response_generator(),
     )
     return ConversationService(
-        graph=build_memory_agent_graph(),
+        graph=build_agent_graph(checkpointer=checkpointer_resource.checkpointer),
         context=context,
+        checkpoint_manager=checkpointer_resource.manager,
     )
