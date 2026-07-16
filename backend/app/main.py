@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from backend.app import __version__
@@ -25,11 +26,18 @@ def create_app() -> FastAPI:
     )
     application.include_router(health_router, prefix=API_PREFIX)
     application.include_router(conversation_router, prefix=API_PREFIX)
-    application.mount(
-        "/",
-        StaticFiles(directory=FRONTEND_DIRECTORY, html=True),
-        name="frontend",
-    )
+
+    if FRONTEND_DIRECTORY.exists():
+        application.mount(
+            "/",
+            StaticFiles(directory=FRONTEND_DIRECTORY, html=True),
+            name="frontend",
+        )
+    else:
+        @application.get("/", include_in_schema=False)
+        def redirect_to_static_index() -> RedirectResponse:
+            return RedirectResponse("/index.html")
+
     return application
 
 
