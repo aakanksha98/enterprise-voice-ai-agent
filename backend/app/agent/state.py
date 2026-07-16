@@ -2,6 +2,12 @@ from typing import Literal, NotRequired, TypedDict
 
 
 InputStatus = Literal["valid", "invalid"]
+FAQTopic = Literal[
+    "greeting",
+    "assistant_identity",
+    "capabilities",
+    "courtesy",
+]
 PlannerIntent = Literal[
     "faq",
     "rag",
@@ -11,7 +17,12 @@ PlannerIntent = Literal[
     "human_escalation",
     "clarification",
 ]
-WorkflowStage = Literal["ready_for_planning", "planned", "rejected"]
+WorkflowStage = Literal[
+    "ready_for_planning",
+    "planned",
+    "faq_answered",
+    "rejected",
+]
 
 
 class ExtractedSlots(TypedDict, total=False):
@@ -31,6 +42,8 @@ class AgentState(TypedDict):
     detected_intent: NotRequired[PlannerIntent]
     planner_confidence: NotRequired[float]
     extracted_slots: NotRequired[ExtractedSlots]
+    faq_topic: NotRequired[FAQTopic | None]
+    draft_response: NotRequired[str]
 
 
 class AgentStateUpdate(TypedDict, total=False):
@@ -41,3 +54,5 @@ class AgentStateUpdate(TypedDict, total=False):
     detected_intent: PlannerIntent
     planner_confidence: float
     extracted_slots: ExtractedSlots
+    faq_topic: FAQTopic | None
+    draft_response: str

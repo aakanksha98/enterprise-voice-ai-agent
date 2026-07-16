@@ -56,4 +56,5 @@ def plan_request(
         "detected_intent": decision.intent,
         "planner_confidence": decision.confidence,
         "extracted_slots": extracted_slots,
+        "faq_topic": decision.faq_topic,
     }

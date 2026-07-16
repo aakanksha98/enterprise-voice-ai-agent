@@ -27,6 +27,7 @@ def test_valid_message_is_normalized_and_planned() -> None:
     decision = PlannerDecision(
         intent="book_appointment",
         confidence=0.94,
+        faq_topic=None,
         slots=PlannerSlots(
             service="haircut",
             date="tomorrow",
@@ -49,6 +50,7 @@ def test_valid_message_is_normalized_and_planned() -> None:
         "workflow_stage": "planned",
         "detected_intent": "book_appointment",
         "planner_confidence": 0.94,
+        "faq_topic": None,
         "extracted_slots": {
             "service": "haircut",
             "date": "tomorrow",
@@ -77,6 +79,7 @@ def test_valid_path_runs_planner_after_validation() -> None:
     decision = PlannerDecision(
         intent="rag",
         confidence=0.9,
+        faq_topic=None,
         slots=PlannerSlots(
             service=None,
             date=None,
@@ -128,6 +131,7 @@ def test_planner_schema_accepts_only_supported_intents(
     decision = PlannerDecision(
         intent=intent,
         confidence=0.8,
+        faq_topic="greeting" if intent == "faq" else None,
         slots=PlannerSlots(
             service=None,
             date=None,
@@ -145,6 +149,7 @@ def test_planner_schema_rejects_unknown_intent() -> None:
         PlannerDecision(
             intent="weather",
             confidence=0.8,
+            faq_topic=None,
             slots=PlannerSlots(
                 service=None,
                 date=None,
@@ -163,6 +168,7 @@ def test_planner_schema_rejects_out_of_range_confidence(
         PlannerDecision(
             intent="clarification",
             confidence=confidence,
+            faq_topic=None,
             slots=PlannerSlots(
                 service=None,
                 date=None,

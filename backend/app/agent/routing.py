@@ -4,6 +4,7 @@ from backend.app.agent.state import AgentState
 
 
 RouteDecision = Literal["ready", "invalid"]
+PlannedRouteDecision = Literal["faq", "deferred"]
 
 
 def route_validated_input(state: AgentState) -> RouteDecision:
@@ -16,3 +17,11 @@ def route_validated_input(state: AgentState) -> RouteDecision:
         return "invalid"
 
     raise ValueError("Input must be validated before routing")
+
+
+def route_planned_intent(state: AgentState) -> PlannedRouteDecision:
+    detected_intent = state.get("detected_intent")
+    if detected_intent is None:
+        raise ValueError("A planned intent is required before routing")
+
+    return "faq" if detected_intent == "faq" else "deferred"

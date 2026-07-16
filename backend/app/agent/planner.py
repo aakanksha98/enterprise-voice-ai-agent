@@ -1,12 +1,13 @@
 import os
 from dataclasses import dataclass
+from typing import Self
 
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import Runnable
 from langchain_openai import ChatOpenAI
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
-from backend.app.agent.state import PlannerIntent
+from backend.app.agent.state import FAQTopic, PlannerIntent
 
 
 DEFAULT_PLANNER_MODEL = "gpt-5.4-mini"
@@ -31,6 +32,7 @@ class PlannerDecision(BaseModel):
 
     intent: PlannerIntent
     confidence: float
+    faq_topic: FAQTopic | None
     slots: PlannerSlots
 
     @field_validator("confidence")
@@ -39,6 +41,16 @@ class PlannerDecision(BaseModel):
         if not 0 <= value <= 1:
             raise ValueError("confidence must be between 0 and 1")
         return value
+
+    @model_validator(mode="after")
+    def validate_faq_topic(self) -> Self:
+        if self.intent == "faq" and self.faq_topic is None:
+            raise ValueError("faq_topic is required for the faq intent")
+
+        if self.intent != "faq" and self.faq_topic is not None:
+            raise ValueError("faq_topic is only valid for the faq intent")
+
+        return self
 
 
 PlannerRunnable = Runnable[dict[str, str], PlannerDecision]
@@ -56,13 +68,16 @@ PLANNER_PROMPT = ChatPromptTemplate.from_messages(
             """You are the constrained intent planner for an enterprise receptionist.
 
 Choose exactly one route:
-- faq: greetings or a very small, stable canned answer.
+- faq: greetings, assistant identity, capabilities, or courtesy replies.
 - rag: services, pricing, policies, or other business knowledge.
 - book_appointment: create a new appointment.
 - cancel_appointment: cancel an existing appointment.
 - reschedule_appointment: move an existing appointment.
 - human_escalation: the user explicitly asks for a person or human handoff.
 - clarification: the request is unclear or no single route can be selected.
+
+For faq, set faq_topic to greeting, assistant_identity, capabilities, or
+courtesy. For every other route, set faq_topic to null.
 
 Extract only details explicitly present in the request. Preserve date and time
 phrases as spoken. Do not answer the request and do not call any tool. Return a
