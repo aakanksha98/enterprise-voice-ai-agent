@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta
+      name="description"
+      content="Enterprise Voice AI Agent reception workspace"
+    >
+    <title>Enterprise Voice AI Agent</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <a class="skip-link" href="#conversation-log">Skip to conversation</a>
+
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="brand" aria-label="Enterprise Voice AI Agent">
+          <span class="brand-mark" aria-hidden="true">
+            <span></span>
+            <span></span>
+            <span></span>
+            <span></span>
+            <span></span>
+          </span>
+          <span class="brand-copy">
+            <strong>Enterprise Voice AI Agent</strong>
+            <span>Reception workspace</span>
+          </span>
+        </div>
+
+        <div class="topbar-actions">
+          <span class="system-status">
+            <span class="status-dot" aria-hidden="true"></span>
+            Interface ready
+          </span>
+          <button class="button button--secondary" type="button" data-reset>
+            Reset conversation
+          </button>
+        </div>
+      </header>
+
+      <main class="workspace">
+        <aside class="session-panel" aria-labelledby="session-title">
+          <div class="session-panel__header">
+            <p class="eyebrow">Workspace</p>
+            <h2 id="session-title">Session</h2>
+          </div>
+
+          <dl class="session-details">
+            <div>
+              <dt>Status</dt>
+              <dd>
+                <span class="status-dot" aria-hidden="true"></span>
+                <span data-session-status>Ready</span>
+              </dd>
+            </div>
+            <div>
+              <dt>Channel</dt>
+              <dd>Text</dd>
+            </div>
+            <div>
+              <dt>Language</dt>
+              <dd>English (US)</dd>
+            </div>
+            <div>
+              <dt>Intent</dt>
+              <dd data-session-intent>Not identified</dd>
+            </div>
+          </dl>
+
+          <section class="context-panel" aria-labelledby="context-title">
+            <h3 id="context-title">Collected context</h3>
+            <dl class="context-list">
+              <div>
+                <dt>Customer</dt>
+                <dd>Not provided</dd>
+              </div>
+              <div>
+                <dt>Service</dt>
+                <dd>Not selected</dd>
+              </div>
+              <div>
+                <dt>Appointment</dt>
+                <dd>No details</dd>
+              </div>
+            </dl>
+          </section>
+        </aside>
+
+        <section class="conversation-panel" aria-labelledby="conversation-title">
+          <header class="conversation-header">
+            <div>
+              <p class="eyebrow">Live conversation</p>
+              <h1 id="conversation-title">Reception desk</h1>
+            </div>
+
+            <div class="agent-identity" aria-label="Assistant identity">
+              <span class="agent-avatar" aria-hidden="true">AI</span>
+              <span>
+                <strong>Aster</strong>
+                <small>Service assistant</small>
+              </span>
+            </div>
+          </header>
+
+          <div
+            class="conversation-log"
+            id="conversation-log"
+            role="log"
+            aria-live="polite"
+            aria-relevant="additions"
+            tabindex="-1"
+          >
+            <div class="date-divider"><span>Today</span></div>
+
+            <article class="message message--assistant">
+              <span class="agent-avatar message__avatar" aria-hidden="true">AI</span>
+              <div class="message__content">
+                <div class="message__meta">
+                  <strong>Aster</strong>
+                  <time>Now</time>
+                </div>
+                <div class="message__bubble">
+                  <p>Hello. How can I help with your appointment or service question today?</p>
+                </div>
+              </div>
+            </article>
+          </div>
+
+          <section class="quick-actions" aria-labelledby="quick-actions-title">
+            <h2 id="quick-actions-title">Common requests</h2>
+            <div class="quick-actions__grid">
+              <button type="button" data-prompt="I would like to book an appointment.">
+                Book appointment
+              </button>
+              <button type="button" data-prompt="What services and pricing do you offer?">
+                Services and pricing
+              </button>
+              <button type="button" data-prompt="What is your cancellation policy?">
+                Cancellation policy
+              </button>
+              <button type="button" data-prompt="I need to speak with a person.">
+                Speak with a person
+              </button>
+            </div>
+          </section>
+
+          <div class="composer-region">
+            <form class="composer" data-composer>
+              <label class="visually-hidden" for="message-input">Message</label>
+              <textarea
+                id="message-input"
+                name="message"
+                rows="1"
+                maxlength="500"
+                placeholder="Message the reception desk"
+                autocomplete="off"
+                data-message-input
+              ></textarea>
+              <div class="composer__footer">
+                <span class="character-count" data-character-count>0 / 500</span>
+                <button class="button button--primary" type="submit" disabled data-send>
+                  Send
+                </button>
+              </div>
+            </form>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <p class="visually-hidden" role="status" aria-live="polite" data-announcement></p>
+
+    <script src="app.js"></script>
+  </body>
+</html>
