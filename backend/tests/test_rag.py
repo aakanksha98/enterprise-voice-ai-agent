@@ -106,6 +106,8 @@ def test_rag_intent_retrieves_and_serializes_business_knowledge() -> None:
     assert response_context["response_goal"] == (
         "Answer the business question using only the retrieved evidence."
     )
+    assert response_context["facts"]["query_scope"] == "business_question"
+    assert response_context["facts"]["retrieval_query"] == "What does a haircut cost?"
     assert response_context["business"] == {
         "name": "this business",
         "type": "dental",
@@ -131,6 +133,37 @@ def test_rag_intent_retrieves_and_serializes_business_knowledge() -> None:
             "source": "business_knowledge",
         },
     ]
+
+
+def test_rag_response_context_hides_custom_business_name_for_factual_answers() -> None:
+    response_inputs: list[dict[str, str]] = []
+    context = AgentContext(
+        planner=RunnableLambda(lambda _: rag_decision()),
+        business_name="Ravi Auto Works",
+        rag_retriever=RunnableLambda(
+            lambda _: [
+                Document(
+                    page_content="Oil changes start at $65.",
+                    metadata={"business_type": "dental"},
+                )
+            ]
+        ),
+        response_generator=RunnableLambda(
+            lambda response_input: (
+                response_inputs.append(response_input)
+                or "I can help with appointments and business information for this profile."
+            )
+        ),
+    )
+
+    agent_graph.invoke(
+        {"user_message": "What is a cow?"},
+        context=context,
+    )
+
+    response_context = json.loads(response_inputs[0]["response_context"])
+    assert response_context["business"]["name"] == "this business"
+    assert response_context["facts"]["query_scope"] == "off_domain"
 
 
 def test_rag_route_runs_after_planning() -> None:
