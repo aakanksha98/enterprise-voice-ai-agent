@@ -9,6 +9,7 @@ The assistant can answer business-specific questions through profile-scoped RAG,
 ## What It Demonstrates
 
 - LangGraph state orchestration with explicit routing, slot filling, and response generation
+- Two-stage LLM design: one model plans intent and slots, a second model turns graph output into a natural receptionist reply
 - Runtime business configuration without duplicating the graph
 - Profile-scoped RAG for services, pricing, hours, policies, and FAQs
 - Tool execution for booking, cancellation, rescheduling, and human escalation
@@ -34,16 +35,19 @@ flowchart LR
     Graph --> Planner["Intent + slot planner"]
     Planner --> RAG["Business RAG<br/>Neon pgvector"]
     Planner --> Tools["Mock appointment tools"]
-    Planner --> Response["Response generator"]
+    RAG --> State["Structured graph output"]
+    Tools --> State
+    Planner --> State
+    State --> Response["LLM response generator"]
     Graph --> Checkpoints["Postgres checkpointer<br/>session state"]
-    RAG --> Response
-    Tools --> Response
     Response --> UI
 ```
 
 The important design principle is:
 
 > One LangGraph workflow adapts to multiple appointment-based businesses through runtime configuration while keeping orchestration logic unchanged.
+
+The planner LLM decides intent and extracts slots. LangGraph owns routing, state updates, retrieval, service validation, and tool execution. The response LLM receives structured graph output and only decides how Aster should speak to the user.
 
 ## Supported Workflows
 

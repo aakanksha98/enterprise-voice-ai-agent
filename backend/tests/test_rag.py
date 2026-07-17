@@ -1,3 +1,5 @@
+import json
+
 import pytest
 from langchain_core.documents import Document
 from langchain_core.runnables import RunnableLambda
@@ -96,14 +98,38 @@ def test_rag_intent_retrieves_and_serializes_business_knowledge() -> None:
             "Haircuts start at $35, and we are open Monday through Friday."
         ),
     }
-    assert response_inputs == [
+    assert len(response_inputs) == 1
+    response_context = json.loads(response_inputs[0]["response_context"])
+    assert response_context["user_message"] == "What does a haircut cost?"
+    assert response_context["intent"] == "rag"
+    assert response_context["workflow_stage"] == "knowledge_retrieved"
+    assert response_context["response_goal"] == (
+        "Answer the business question using only the retrieved evidence."
+    )
+    assert response_context["business"] == {
+        "name": "this business",
+        "type": "dental",
+        "label": "Dental Clinic",
+        "supported_services": [
+            "dental cleaning",
+            "dental exam",
+            "teeth whitening",
+            "filling",
+            "emergency dental visit",
+        ],
+    }
+    assert response_context["facts"]["retrieved_documents"] == [
         {
-            "user_message": "What does a haircut cost?",
-            "retrieved_context": (
-                "Source: service-catalog\nHaircuts start at $35.\n\n"
-                "Source: business_knowledge\nOpen Monday through Friday."
-            ),
-        }
+            "content": "Haircuts start at $35.",
+            "source": "service-catalog",
+            "category": "pricing",
+            "business_type": "dental",
+            "similarity": 0.91,
+        },
+        {
+            "content": "Open Monday through Friday.",
+            "source": "business_knowledge",
+        },
     ]
 
 
