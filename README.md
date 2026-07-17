@@ -21,6 +21,7 @@ Build a production-minded flagship AI project while learning LangGraph through e
 - Voice and text conversations
 - Three demo business profiles: Dental Clinic, Salon, and Auto Repair Shop
 - Required business type and required custom business name before the conversation starts
+- Two-stage LLM design: one model plans intent and slots, a second model turns graph output into a natural receptionist reply
 - Profile-scoped service, pricing, policy, hours, and FAQ retrieval
 - Mock appointment booking, cancellation, and rescheduling
 - Human escalation routing
@@ -37,6 +38,14 @@ The selected business type controls the demo knowledge base, supported services,
 - `auto_repair`
 
 Example names such as `BrightSmile Dental`, `Luxe Hair Studio`, and `TurboFix Garage` are placeholders only. They are not defaults and do not affect retrieval or appointment logic.
+
+## Response Generation Contract
+
+The first LLM call is the planner. It classifies intent and extracts slots.
+
+LangGraph handles workflow routing, state updates, missing field detection, RAG retrieval, service validation, and tool execution.
+
+The second LLM call receives structured graph output and generates the final receptionist-style response. It must not execute tools, invent business facts, override workflow state, or make appointment decisions.
 
 ## Local Knowledge Setup
 

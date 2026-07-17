@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import json
 import os
-from collections.abc import Callable
-from typing import TYPE_CHECKING, Final
+from typing import TYPE_CHECKING, Any, Final
 
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
@@ -11,6 +11,7 @@ from langchain_openai import ChatOpenAI
 from langgraph.runtime import Runtime
 
 from backend.app.agent.state import AgentState, AgentStateUpdate, SmallTalkTopic
+from backend.app.business_profiles import supported_service_names
 
 
 if TYPE_CHECKING:
@@ -35,24 +36,35 @@ SMALL_TALK_RESPONSES: Final[dict[SmallTalkTopic, str]] = {
 }
 
 
-RAG_RESPONSE_PROMPT = ChatPromptTemplate.from_messages(
+CONVERSATIONAL_RESPONSE_PROMPT = ChatPromptTemplate.from_messages(
     [
         (
             "system",
-            """You answer business questions for a voice receptionist.
+            """You are Aster, a warm and professional AI receptionist.
 
-Use only the supplied business evidence. If the evidence does not answer the
-question, say that you do not have enough information. Never invent prices,
-policies, services, availability, or contact details. Keep the answer concise,
-natural when spoken aloud, and free of markdown.""",
+The system has already handled intent classification, routing, business logic,
+retrieval, state updates, and tool execution. Your only job is to turn the
+provided structured response context into a natural user-facing reply.
+
+Rules:
+- Do not decide business logic, tool usage, appointment status, service
+  eligibility, prices, policies, discounts, staff details, or availability.
+- Use only facts present in the response context.
+- Do not invent appointments, services, prices, policies, promotions, staff
+  details, availability, or contact details.
+- If information is unavailable, say so naturally and offer the next helpful
+  step when appropriate.
+- If fields are missing, ask only for the missing information.
+- If a tool result is present, describe that result conversationally.
+- Keep the reply concise, friendly, and suitable for voice.
+- Do not use markdown, bullet points, JSON, or internal workflow labels.""",
         ),
         (
             "human",
-            """Business evidence:
-{retrieved_context}
+            """Structured response context:
+{response_context}
 
-Customer question:
-{user_message}""",
+Write Aster's reply now.""",
         ),
     ]
 )
@@ -63,14 +75,15 @@ def create_openai_response_generator(
 ) -> ResponseRunnable:
     selected_model = model or os.getenv("OPENAI_MODEL", DEFAULT_RESPONSE_MODEL)
     chat_model = ChatOpenAI(model=selected_model, max_retries=2)
-    return RAG_RESPONSE_PROMPT | chat_model | StrOutputParser()
+    return CONVERSATIONAL_RESPONSE_PROMPT | chat_model | StrOutputParser()
 
 
 def generate_response(
     state: AgentState,
     runtime: Runtime[AgentContext],
 ) -> AgentStateUpdate:
-    response_text = _select_response(state, runtime).strip()
+    response_context = _build_response_context(state, runtime)
+    response_text = _generate_conversational_response(response_context, runtime).strip()
     if not response_text:
         raise ValueError("Response generation returned empty text")
 
@@ -82,94 +95,216 @@ def generate_response(
     return update
 
 
-def _select_response(
-    state: AgentState,
+def _generate_conversational_response(
+    response_context: dict[str, Any],
     runtime: Runtime[AgentContext],
 ) -> str:
-    workflow_stage = state.get("workflow_stage")
-    response_builders: dict[str, Callable[[AgentState], str]] = {
-        "rejected": _invalid_input_response,
-        "booking_information_required": _booking_information_response,
-        "appointment_booked": _booking_confirmation_response,
-        "appointment_already_active": _appointment_already_active_response,
-        "unsupported_service_requested": _unsupported_service_response,
-        "cancellation_information_required": _cancellation_information_response,
-        "appointment_cancelled": _cancellation_confirmation_response,
-        "reschedule_information_required": _reschedule_information_response,
-        "appointment_rescheduled": _reschedule_confirmation_response,
-        "no_active_appointment": _no_active_appointment_response,
-        "human_escalation_queued": _escalation_response,
-    }
-
-    if workflow_stage == "knowledge_retrieved":
-        return _rag_response(state, runtime)
-
-    if workflow_stage == "planned":
-        return _planned_response(state, runtime)
-
-    builder = response_builders.get(workflow_stage or "")
-    if builder is None:
-        raise ValueError(f"No response strategy for workflow stage: {workflow_stage}")
-    return builder(state)
-
-
-def _rag_response(
-    state: AgentState,
-    runtime: Runtime[AgentContext],
-) -> str:
-    documents = state.get("retrieved_documents", [])
-    if not documents:
-        return "I could not find enough business information to answer that."
-
     if runtime.context is None or runtime.context.response_generator is None:
-        raise RuntimeError("Response generator context is required for RAG answers")
+        return _fallback_response(response_context)
 
-    context_blocks = [
-        f"Source: {document['source']}\n{document['content']}"
-        for document in documents
-    ]
     return runtime.context.response_generator.invoke(
         {
-            "user_message": state.get("normalized_message", ""),
-            "retrieved_context": "\n\n".join(context_blocks),
+            "response_context": json.dumps(
+                response_context,
+                ensure_ascii=False,
+                sort_keys=True,
+            )
         }
     )
 
 
-def _invalid_input_response(_: AgentState) -> str:
-    return "Please say or enter a request so I can help."
-
-
-def _planned_response(
+def _build_response_context(
     state: AgentState,
     runtime: Runtime[AgentContext],
-) -> str:
-    if state.get("detected_intent") == "clarification":
-        return _clarification_response(state)
+) -> dict[str, Any]:
+    agent_context = runtime.context
+    business_profile = agent_context.business_profile if agent_context else None
+    business_name = (
+        agent_context.business_name
+        if agent_context and agent_context.business_name
+        else "this business"
+    )
+    business = {
+        "name": business_name,
+        "type": business_profile.business_type if business_profile else None,
+        "label": business_profile.label if business_profile else None,
+        "supported_services": (
+            supported_service_names(business_profile) if business_profile else []
+        ),
+    }
 
-    if state.get("detected_intent") != "small_talk":
-        raise ValueError("Planned response requires small talk or clarification")
+    return {
+        "assistant": {
+            "name": "Aster",
+            "role": "AI receptionist",
+        },
+        "business": business,
+        "user_message": state.get("normalized_message") or state.get("user_message", ""),
+        "intent": state.get("detected_intent"),
+        "workflow_stage": state.get("workflow_stage"),
+        "response_goal": _response_goal(state),
+        "facts": {
+            "small_talk_topic": state.get("small_talk_topic"),
+            "extracted_slots": dict(state.get("extracted_slots", {})),
+            "missing_fields": _missing_fields(state),
+            "retrieved_documents": state.get("retrieved_documents", []),
+            "booking_result": state.get("booking_result"),
+            "cancellation_result": state.get("cancellation_result"),
+            "reschedule_result": state.get("reschedule_result"),
+            "escalation_result": state.get("escalation_result"),
+            "active_appointment": state.get("active_appointment"),
+            "unsupported_service": state.get("unsupported_service"),
+            "supported_services": state.get("supported_services", []),
+            "validation_error": state.get("validation_error"),
+        },
+        "guardrails": {
+            "business_logic_already_decided": True,
+            "do_not_execute_tools": True,
+            "do_not_invent_business_facts": True,
+            "do_not_override_workflow_stage": True,
+        },
+    }
 
-    topic = state.get("small_talk_topic")
-    if topic is None:
-        raise ValueError("Small-talk topic is required")
 
-    if topic == "greeting":
+def _response_goal(state: AgentState) -> str:
+    workflow_stage = state.get("workflow_stage")
+    intent = state.get("detected_intent")
+
+    if workflow_stage == "rejected":
+        return "Ask the user to enter a request so the receptionist can help."
+
+    if workflow_stage == "knowledge_retrieved":
+        if state.get("retrieved_documents"):
+            return "Answer the business question using only the retrieved evidence."
         return (
-            "Hi! I'm Aster, the AI receptionist for "
-            f"{_business_name(runtime)}. How can I help today?"
+            "Explain that the available business information does not answer the "
+            "question and offer a helpful next step."
         )
 
-    return SMALL_TALK_RESPONSES[topic]
+    if workflow_stage == "planned":
+        if intent == "small_talk":
+            return "Respond naturally to the small-talk topic."
+        return (
+            "Ask a concise, natural clarification question related to the user's "
+            "request and the receptionist domain."
+        )
+
+    goals = {
+        "booking_information_required": (
+            "Ask only for the missing appointment booking details."
+        ),
+        "appointment_booked": (
+            "Confirm the appointment was booked using the booking result."
+        ),
+        "appointment_already_active": (
+            "Explain that one active appointment already exists and offer to help "
+            "cancel or reschedule it."
+        ),
+        "unsupported_service_requested": (
+            "Explain that the requested service is not supported for this demo "
+            "profile and offer the supported services."
+        ),
+        "cancellation_information_required": (
+            "Explain that an active appointment is needed before cancellation."
+        ),
+        "appointment_cancelled": (
+            "Confirm the appointment was cancelled using the cancellation result."
+        ),
+        "reschedule_information_required": (
+            "Ask only for the missing reschedule details."
+        ),
+        "appointment_rescheduled": (
+            "Confirm the appointment was rescheduled using the reschedule result."
+        ),
+        "no_active_appointment": (
+            "Explain that there is no active appointment in this conversation for "
+            "the requested action."
+        ),
+        "human_escalation_queued": (
+            "Acknowledge the concern or request and explain that a human support "
+            "request was created."
+        ),
+    }
+    return goals.get(
+        workflow_stage or "",
+        "Write a concise receptionist response based only on the provided facts.",
+    )
 
 
-def _booking_information_response(state: AgentState) -> str:
-    missing_fields = _join_fields(state.get("missing_booking_slots", []))
+def _missing_fields(state: AgentState) -> list[str]:
+    for field_name in (
+        "missing_booking_slots",
+        "missing_cancellation_slots",
+        "missing_reschedule_slots",
+    ):
+        fields = state.get(field_name)
+        if fields:
+            return list(fields)
+    return []
+
+
+def _fallback_response(response_context: dict[str, Any]) -> str:
+    stage = response_context.get("workflow_stage")
+    facts = response_context.get("facts", {})
+
+    if stage == "rejected":
+        return "Please say or enter a request so I can help."
+
+    if stage == "knowledge_retrieved":
+        documents = facts.get("retrieved_documents") or []
+        if not documents:
+            return "I could not find enough business information to answer that."
+        return str(documents[0].get("content", "")).strip()
+
+    if stage == "planned":
+        intent = response_context.get("intent")
+        if intent == "small_talk":
+            return _small_talk_fallback(response_context)
+        return (
+            "Could you clarify whether you need business information, "
+            "appointment help, or a human specialist?"
+        )
+
+    fallback_builders = {
+        "booking_information_required": _booking_information_fallback,
+        "appointment_booked": _booking_confirmation_fallback,
+        "appointment_already_active": _appointment_already_active_fallback,
+        "unsupported_service_requested": _unsupported_service_fallback,
+        "cancellation_information_required": (
+            lambda _: "I need an active appointment in this conversation before I can cancel it."
+        ),
+        "appointment_cancelled": _cancellation_confirmation_fallback,
+        "reschedule_information_required": _reschedule_information_fallback,
+        "appointment_rescheduled": _reschedule_confirmation_fallback,
+        "no_active_appointment": _no_active_appointment_fallback,
+        "human_escalation_queued": _escalation_fallback,
+    }
+    builder = fallback_builders.get(str(stage))
+    if builder is None:
+        raise ValueError(f"No response strategy for workflow stage: {stage}")
+    return builder(response_context)
+
+
+def _small_talk_fallback(response_context: dict[str, Any]) -> str:
+    facts = response_context.get("facts", {})
+    topic = facts.get("small_talk_topic")
+    if topic == "greeting":
+        business_name = response_context.get("business", {}).get("name") or "this business"
+        return (
+            "Hi! I'm Aster, the AI receptionist for "
+            f"{business_name}. How can I help today?"
+        )
+    return SMALL_TALK_RESPONSES[str(topic)]
+
+
+def _booking_information_fallback(response_context: dict[str, Any]) -> str:
+    facts = response_context.get("facts", {})
+    missing_fields = _join_fields(facts.get("missing_fields", []))
     return f"To book the appointment, please provide {missing_fields}."
 
 
-def _booking_confirmation_response(state: AgentState) -> str:
-    result = state.get("booking_result")
+def _booking_confirmation_fallback(response_context: dict[str, Any]) -> str:
+    result = response_context.get("facts", {}).get("booking_result")
     if result is None:
         raise ValueError("Booking result is required")
     return (
@@ -178,8 +313,8 @@ def _booking_confirmation_response(state: AgentState) -> str:
     )
 
 
-def _appointment_already_active_response(state: AgentState) -> str:
-    appointment = state.get("active_appointment")
+def _appointment_already_active_fallback(response_context: dict[str, Any]) -> str:
+    appointment = response_context.get("facts", {}).get("active_appointment")
     if appointment is None:
         raise ValueError("Active appointment is required")
     return (
@@ -189,9 +324,10 @@ def _appointment_already_active_response(state: AgentState) -> str:
     )
 
 
-def _unsupported_service_response(state: AgentState) -> str:
-    requested_service = state.get("unsupported_service") or "that service"
-    services = state.get("supported_services", [])
+def _unsupported_service_fallback(response_context: dict[str, Any]) -> str:
+    facts = response_context.get("facts", {})
+    requested_service = facts.get("unsupported_service") or "that service"
+    services = facts.get("supported_services", [])
     if not services:
         raise ValueError("Supported services are required")
 
@@ -201,12 +337,8 @@ def _unsupported_service_response(state: AgentState) -> str:
     )
 
 
-def _cancellation_information_response(_: AgentState) -> str:
-    return "I need an active appointment in this conversation before I can cancel it."
-
-
-def _cancellation_confirmation_response(state: AgentState) -> str:
-    result = state.get("cancellation_result")
+def _cancellation_confirmation_fallback(response_context: dict[str, Any]) -> str:
+    result = response_context.get("facts", {}).get("cancellation_result")
     if result is None:
         raise ValueError("Cancellation result is required")
     return (
@@ -215,13 +347,14 @@ def _cancellation_confirmation_response(state: AgentState) -> str:
     )
 
 
-def _reschedule_information_response(state: AgentState) -> str:
-    missing_fields = _join_fields(state.get("missing_reschedule_slots", []))
+def _reschedule_information_fallback(response_context: dict[str, Any]) -> str:
+    facts = response_context.get("facts", {})
+    missing_fields = _join_fields(facts.get("missing_fields", []))
     return f"To reschedule the appointment, please provide {missing_fields}."
 
 
-def _reschedule_confirmation_response(state: AgentState) -> str:
-    result = state.get("reschedule_result")
+def _reschedule_confirmation_fallback(response_context: dict[str, Any]) -> str:
+    result = response_context.get("facts", {}).get("reschedule_result")
     if result is None:
         raise ValueError("Reschedule result is required")
     return (
@@ -230,8 +363,8 @@ def _reschedule_confirmation_response(state: AgentState) -> str:
     )
 
 
-def _no_active_appointment_response(state: AgentState) -> str:
-    intent = state.get("detected_intent")
+def _no_active_appointment_fallback(response_context: dict[str, Any]) -> str:
+    intent = response_context.get("intent")
     action = "reschedule" if intent == "reschedule_appointment" else "cancel"
     return (
         "I don't have an active appointment in this conversation to "
@@ -239,20 +372,13 @@ def _no_active_appointment_response(state: AgentState) -> str:
     )
 
 
-def _escalation_response(state: AgentState) -> str:
-    result = state.get("escalation_result")
+def _escalation_fallback(response_context: dict[str, Any]) -> str:
+    result = response_context.get("facts", {}).get("escalation_result")
     if result is None:
         raise ValueError("Escalation result is required")
     return (
         "I have queued your request for a human specialist. "
         f"Your escalation ID is {result['escalation_id']}."
-    )
-
-
-def _clarification_response(_: AgentState) -> str:
-    return (
-        "Could you clarify whether you need business information, "
-        "appointment help, or a human specialist?"
     )
 
 
@@ -270,10 +396,3 @@ def _join_fields(fields: list[str]) -> str:
     if len(readable_fields) == 2:
         return " and ".join(readable_fields)
     return ", ".join(readable_fields[:-1]) + f", and {readable_fields[-1]}"
-
-
-def _business_name(runtime: Runtime[AgentContext]) -> str:
-    if runtime.context is None:
-        return "this business"
-
-    return runtime.context.business_name or "this business"
