@@ -23,7 +23,7 @@ ResponseRunnable = Runnable[dict[str, str], str]
 
 SMALL_TALK_RESPONSES: Final[dict[SmallTalkTopic, str]] = {
     "greeting": (
-        "Hi! I'm Aster, the AI receptionist for BrightSmile Dental. "
+        "Hi! I'm Aster, the AI receptionist for this business. "
         "How can I help today?"
     ),
     "assistant_identity": "I'm Aster, an AI reception assistant.",
@@ -276,7 +276,4 @@ def _business_name(runtime: Runtime[AgentContext]) -> str:
     if runtime.context is None:
         return "this business"
 
-    return (
-        runtime.context.business_name
-        or runtime.context.business_profile.default_business_name
-    )
+    return runtime.context.business_name or "this business"

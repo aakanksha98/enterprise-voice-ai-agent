@@ -20,10 +20,23 @@ Build a production-minded flagship AI project while learning LangGraph through e
 
 - Voice and text conversations
 - Three demo business profiles: Dental Clinic, Salon, and Auto Repair Shop
+- Required business type and required custom business name before the conversation starts
 - Profile-scoped service, pricing, policy, hours, and FAQ retrieval
 - Mock appointment booking, cancellation, and rescheduling
 - Human escalation routing
 - One active appointment per conversation session
+
+## Business Name Contract
+
+The user can enter any business name. The name personalizes the greeting only.
+
+The selected business type controls the demo knowledge base, supported services, pricing, policies, and transactional workflow behavior:
+
+- `dental`
+- `salon`
+- `auto_repair`
+
+Example names such as `BrightSmile Dental`, `Luxe Hair Studio`, and `TurboFix Garage` are placeholders only. They are not defaults and do not affect retrieval or appointment logic.
 
 ## Local Knowledge Setup
 
@@ -32,4 +45,3 @@ Index the bundled demo knowledge files into Neon after configuring `.env`:
 ```powershell
 .\.venv\Scripts\python.exe -m backend.scripts.index_knowledge backend\data\knowledge
 ```
-

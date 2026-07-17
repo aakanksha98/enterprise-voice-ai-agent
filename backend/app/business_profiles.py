@@ -18,7 +18,7 @@ class ServiceCatalogItem:
 class BusinessProfile:
     business_type: BusinessType
     label: str
-    default_business_name: str
+    example_business_name: str
     services: tuple[ServiceCatalogItem, ...]
 
 
@@ -30,7 +30,7 @@ BUSINESS_PROFILES: dict[BusinessType, BusinessProfile] = {
     "dental": BusinessProfile(
         business_type="dental",
         label="Dental Clinic",
-        default_business_name="BrightSmile Dental",
+        example_business_name="BrightSmile Dental",
         services=(
             ServiceCatalogItem("dental cleaning", ("cleaning", "teeth cleaning")),
             ServiceCatalogItem("dental exam", ("checkup", "check-up", "exam")),
@@ -45,7 +45,7 @@ BUSINESS_PROFILES: dict[BusinessType, BusinessProfile] = {
     "salon": BusinessProfile(
         business_type="salon",
         label="Salon",
-        default_business_name="Luxe Hair Studio",
+        example_business_name="Luxe Hair Studio",
         services=(
             ServiceCatalogItem("haircut", ("hair cut", "trim")),
             ServiceCatalogItem("blowout", ("blow dry", "blow-dry")),
@@ -57,7 +57,7 @@ BUSINESS_PROFILES: dict[BusinessType, BusinessProfile] = {
     "auto_repair": BusinessProfile(
         business_type="auto_repair",
         label="Auto Repair Shop",
-        default_business_name="TurboFix Garage",
+        example_business_name="TurboFix Garage",
         services=(
             ServiceCatalogItem("oil change", ("oil service",)),
             ServiceCatalogItem("brake inspection", ("brake check", "brakes")),
@@ -85,14 +85,13 @@ def is_supported_business_type(value: str) -> bool:
 
 
 def sanitize_business_name(
-    business_name: str | None,
-    profile: BusinessProfile,
+    business_name: str,
 ) -> str:
-    cleaned_name = sub(r"[\x00-\x1F\x7F]", " ", business_name or "")
+    cleaned_name = sub(r"[\x00-\x1F\x7F]", " ", business_name)
     cleaned_name = sub(r"\s+", " ", cleaned_name).strip()
 
     if not cleaned_name:
-        return profile.default_business_name
+        raise ValueError("business_name is required")
 
     return cleaned_name[:BUSINESS_NAME_MAX_LENGTH]
 

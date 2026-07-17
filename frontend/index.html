@@ -50,7 +50,8 @@
           <form class="profile-form" data-profile-form>
             <div class="field-group">
               <label for="business-type">Business type</label>
-              <select id="business-type" name="business_type" data-business-type>
+              <select id="business-type" name="business_type" required data-business-type>
+                <option value="" selected disabled>Select business type</option>
                 <option value="dental">Dental Clinic</option>
                 <option value="salon">Salon</option>
                 <option value="auto_repair">Auto Repair Shop</option>
@@ -64,7 +65,8 @@
                 name="business_name"
                 type="text"
                 maxlength="80"
-                value="BrightSmile Dental"
+                placeholder="Example: BrightSmile Dental"
+                required
                 data-business-name
               >
             </div>
