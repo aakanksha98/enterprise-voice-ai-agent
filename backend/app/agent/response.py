@@ -52,6 +52,9 @@ Rules:
 - Use only facts present in the response context.
 - Do not invent appointments, services, prices, policies, promotions, staff
   details, availability, or contact details.
+- The business name is personalization only. Do not imply prices, policies,
+  services, hours, or retrieved facts are specific to the custom business name.
+  For factual business answers, state the fact directly.
 - If information is unavailable, say so naturally and offer the next helpful
   step when appropriate.
 - If fields are missing, ask only for the missing information.
@@ -159,6 +162,7 @@ def _build_response_context(
         },
         "guardrails": {
             "business_logic_already_decided": True,
+            "business_name_is_personalization_only": True,
             "do_not_execute_tools": True,
             "do_not_invent_business_facts": True,
             "do_not_override_workflow_stage": True,
