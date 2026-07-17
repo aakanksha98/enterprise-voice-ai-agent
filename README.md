@@ -23,7 +23,7 @@ The assistant can answer business-specific questions through profile-scoped RAG,
 | Salon | Luxe Hair Studio | Haircuts, coloring, styling, bridal services, policies, hours |
 | Auto Repair Shop | TurboFix Garage | Oil changes, brakes, diagnostics, tires, policies, hours |
 
-The business name personalizes the greeting only. Services, pricing, policies, and tool behavior are controlled by the selected business type.
+The business type and business name are both required before a conversation starts. The business name is arbitrary user input and personalizes the greeting only. Services, pricing, policies, RAG retrieval, and tool behavior are controlled only by the selected business type.
 
 ## Core Architecture
 
@@ -64,6 +64,16 @@ active_appointment:
 ```
 
 There are no customer accounts, booking IDs, calendar integrations, or cross-session scheduling workflows in this version.
+
+## Business Name Contract
+
+The user can enter any business name, such as `Happy Tooth Studio`, `Maya Beauty Lounge`, or `Ravi Auto Works`. The name is not used for retrieval, pricing, policies, service eligibility, or workflow routing.
+
+The selected business type is the runtime configuration key:
+
+- `dental` loads dental services, pricing, hours, policies, and appointment service validation
+- `salon` loads salon services, pricing, hours, policies, and appointment service validation
+- `auto_repair` loads auto repair services, pricing, hours, policies, and appointment service validation
 
 ## Tech Stack
 
@@ -131,7 +141,7 @@ $body = @{
   message = "What does an oil change cost?"
   session_id = "demo-auto-001"
   business_type = "auto_repair"
-  business_name = "TurboFix Garage"
+  business_name = "Ravi Auto Works"
 } | ConvertTo-Json
 
 Invoke-RestMethod `
@@ -175,10 +185,10 @@ The production build uses:
 
 Try these prompts in the live app:
 
-1. Select `Auto Repair Shop`, name it `TurboFix Garage`, then ask: `What does an oil change cost?`
-2. Select `Dental Clinic`, name it `BrightSmile Dental`, then say: `Book a dental cleaning tomorrow at 2 PM.`
+1. Select `Auto Repair Shop`, name it `Ravi Auto Works`, then ask: `What does an oil change cost?`
+2. Select `Dental Clinic`, name it `Happy Tooth Studio`, then say: `Book a dental cleaning tomorrow at 2 PM.`
 3. Continue in the same session: `Actually, cancel it.`
-4. Select `Salon`, name it `Luxe Hair Studio`, then ask: `What is your cancellation policy?`
+4. Select `Salon`, name it `Maya Beauty Lounge`, then ask: `What is your cancellation policy?`
 
 ## Current Limits
 

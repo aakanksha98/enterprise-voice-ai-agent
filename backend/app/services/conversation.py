@@ -11,7 +11,6 @@ from backend.app.agent.response import create_openai_response_generator
 from backend.app.agent.state import AgentState
 from backend.app.business_profiles import (
     BusinessType,
-    DEFAULT_BUSINESS_TYPE,
     get_business_profile,
     sanitize_business_name,
 )
@@ -35,14 +34,14 @@ class ConversationService:
         message: str,
         session_id: str,
         *,
-        business_type: BusinessType = DEFAULT_BUSINESS_TYPE,
-        business_name: str | None = None,
+        business_type: BusinessType,
+        business_name: str,
     ) -> AgentState:
         profile = get_business_profile(business_type)
         context = replace(
             self.context,
             business_profile=profile,
-            business_name=sanitize_business_name(business_name, profile),
+            business_name=sanitize_business_name(business_name),
         )
         result = self.graph.invoke(
             {"user_message": message},

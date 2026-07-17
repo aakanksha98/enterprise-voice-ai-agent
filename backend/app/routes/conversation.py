@@ -7,8 +7,6 @@ from backend.app.agent.state import PlannerIntent, WorkflowStage
 from backend.app.business_profiles import (
     BUSINESS_NAME_MAX_LENGTH,
     BusinessType,
-    DEFAULT_BUSINESS_TYPE,
-    get_business_profile,
     sanitize_business_name,
 )
 from backend.app.services.conversation import (
@@ -22,9 +20,8 @@ class ConversationRequest(BaseModel):
 
     message: str = Field(min_length=1, max_length=500)
     session_id: str = Field(pattern=r"^[A-Za-z0-9_-]{8,64}$")
-    business_type: BusinessType = DEFAULT_BUSINESS_TYPE
-    business_name: str | None = Field(
-        default=None,
+    business_type: BusinessType
+    business_name: str = Field(
         min_length=1,
         max_length=BUSINESS_NAME_MAX_LENGTH,
     )
@@ -59,11 +56,10 @@ def continue_conversation(
         business_type=request.business_type,
         business_name=request.business_name,
     )
-    profile = get_business_profile(request.business_type)
     return ConversationResponse(
         response=state["final_response"] or "",
         business_type=request.business_type,
-        business_name=sanitize_business_name(request.business_name, profile),
+        business_name=sanitize_business_name(request.business_name),
         intent=state.get("detected_intent"),
         workflow_stage=state["workflow_stage"],
         slots=dict(state.get("extracted_slots", {})),

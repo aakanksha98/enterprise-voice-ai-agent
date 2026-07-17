@@ -60,23 +60,40 @@ def conversation_client(
 
 def test_conversation_endpoint_returns_final_response(
     conversation_client: TestClient,
+    planner_inputs: list[dict[str, str]],
 ) -> None:
     response = conversation_client.post(
         "/api/v1/conversation",
-        json={"message": "  Please help me  ", "session_id": "session-123"},
+        json={
+            "message": "  Please help me  ",
+            "session_id": "session-123",
+            "business_type": "dental",
+            "business_name": "Happy Tooth Studio",
+        },
     )
 
     assert response.status_code == 200
     assert response.json() == {
         "response": CLARIFICATION_RESPONSE,
         "business_type": "dental",
-        "business_name": "BrightSmile Dental",
+        "business_name": "Happy Tooth Studio",
         "intent": "clarification",
         "workflow_stage": "planned",
         "slots": {},
         "missing_fields": [],
         "active_appointment": None,
     }
+    assert planner_inputs == [
+        {
+            "user_message": "Please help me",
+            "conversation_history": "No prior conversation.",
+            "business_type": "Dental Clinic",
+            "supported_services": (
+                "dental cleaning, dental exam, teeth whitening, filling, "
+                "emergency dental visit"
+            ),
+        }
+    ]
 
 
 def test_conversation_endpoint_reuses_session_memory(
@@ -86,7 +103,12 @@ def test_conversation_endpoint_reuses_session_memory(
     for message in ("First request", "Follow-up request"):
         response = conversation_client.post(
             "/api/v1/conversation",
-            json={"message": message, "session_id": "memory-session"},
+            json={
+                "message": message,
+                "session_id": "memory-session",
+                "business_type": "dental",
+                "business_name": "Any Dental Name",
+            },
         )
         assert response.status_code == 200
 
@@ -178,9 +200,40 @@ def test_conversation_endpoint_returns_tool_reference() -> None:
 @pytest.mark.parametrize(
     "payload",
     [
-        {"message": "   ", "session_id": "session-123"},
-        {"message": "Hello", "session_id": "bad id"},
-        {"message": "Hello", "session_id": "short"},
+        {
+            "message": "   ",
+            "session_id": "session-123",
+            "business_type": "dental",
+            "business_name": "Happy Tooth Studio",
+        },
+        {
+            "message": "Hello",
+            "session_id": "bad id",
+            "business_type": "dental",
+            "business_name": "Happy Tooth Studio",
+        },
+        {
+            "message": "Hello",
+            "session_id": "short",
+            "business_type": "dental",
+            "business_name": "Happy Tooth Studio",
+        },
+        {
+            "message": "Hello",
+            "session_id": "session-123",
+            "business_name": "Happy Tooth Studio",
+        },
+        {
+            "message": "Hello",
+            "session_id": "session-123",
+            "business_type": "dental",
+        },
+        {
+            "message": "Hello",
+            "session_id": "session-123",
+            "business_type": "dental",
+            "business_name": "   ",
+        },
     ],
 )
 def test_conversation_endpoint_validates_request(

@@ -11,6 +11,7 @@ const announcement = document.querySelector("[data-announcement]");
 const resetButton = document.querySelector("[data-reset]");
 const themeToggle = document.querySelector("[data-theme-toggle]");
 const profileForm = document.querySelector("[data-profile-form]");
+const profileSubmitButton = profileForm.querySelector(".profile-form__submit");
 const businessTypeSelect = document.querySelector("[data-business-type]");
 const businessNameInput = document.querySelector("[data-business-name]");
 const quickActionButtons = document.querySelectorAll("[data-prompt]");
@@ -26,15 +27,15 @@ const MAX_MESSAGE_LENGTH = Number(messageInput.maxLength);
 const BUSINESS_PROFILES = {
   dental: {
     label: "Dental Clinic",
-    defaultName: "BrightSmile Dental",
+    exampleName: "BrightSmile Dental",
   },
   salon: {
     label: "Salon",
-    defaultName: "Luxe Hair Studio",
+    exampleName: "Luxe Hair Studio",
   },
   auto_repair: {
     label: "Auto Repair Shop",
-    defaultName: "TurboFix Garage",
+    exampleName: "TurboFix Garage",
   },
 };
 const THEME_STORAGE_KEY = "enterprise-voice-theme";
@@ -54,8 +55,8 @@ let isSubmitting = false;
 let isProfileReady = false;
 let requestGeneration = 0;
 let sessionId = createSessionId();
-let activeBusinessType = businessTypeSelect.value;
-let activeBusinessName = BUSINESS_PROFILES[activeBusinessType].defaultName;
+let activeBusinessType = "";
+let activeBusinessName = "";
 
 const supportsSpeechSynthesis =
   typeof window.speechSynthesis !== "undefined" &&
@@ -155,16 +156,20 @@ function formatCurrentTime() {
 }
 
 function selectedProfile() {
-  return BUSINESS_PROFILES[businessTypeSelect.value] || BUSINESS_PROFILES.dental;
+  return BUSINESS_PROFILES[businessTypeSelect.value] || null;
 }
 
-function cleanBusinessName(value, fallback) {
+function cleanBusinessName(value) {
   const cleaned = value.replace(/[\u0000-\u001F\u007F]/g, " ").replace(/\s+/g, " ").trim();
-  return (cleaned || fallback).slice(0, 80);
+  return cleaned.slice(0, 80);
 }
 
 function profileSummary() {
-  const profile = BUSINESS_PROFILES[activeBusinessType] || BUSINESS_PROFILES.dental;
+  const profile = BUSINESS_PROFILES[activeBusinessType];
+  if (!profile || !activeBusinessName) {
+    return "Not selected";
+  }
+
   return `${activeBusinessName} (${profile.label})`;
 }
 
@@ -424,26 +429,37 @@ function resetConversation({ announce = true } = {}) {
   }
 }
 
-function updateBusinessNameDefault() {
+function updateProfileFormState() {
   const profile = selectedProfile();
-  const currentName = businessNameInput.value.trim();
-  const isDefaultName = Object.values(BUSINESS_PROFILES).some(
-    (businessProfile) => businessProfile.defaultName === currentName,
-  );
+  const businessName = cleanBusinessName(businessNameInput.value);
 
-  businessNameInput.placeholder = profile.defaultName;
-  if (!currentName || isDefaultName) {
-    businessNameInput.value = profile.defaultName;
-  }
+  businessNameInput.placeholder = profile
+    ? `Example: ${profile.exampleName}`
+    : "Enter business name";
+  businessTypeSelect.setCustomValidity(profile ? "" : "Select a business type.");
+  businessNameInput.setCustomValidity(businessName ? "" : "Enter a business name.");
+  profileSubmitButton.disabled = !profile || !businessName;
 }
 
 function applyBusinessProfile(event) {
   event.preventDefault();
 
   const profile = selectedProfile();
+  const businessName = cleanBusinessName(businessNameInput.value);
+
+  businessTypeSelect.setCustomValidity(profile ? "" : "Select a business type.");
+  businessNameInput.setCustomValidity(businessName ? "" : "Enter a business name.");
+  if (!profile || !businessName) {
+    updateProfileFormState();
+    profileForm.reportValidity();
+    return;
+  }
+
   activeBusinessType = businessTypeSelect.value;
-  activeBusinessName = cleanBusinessName(businessNameInput.value, profile.defaultName);
+  activeBusinessName = businessName;
   businessNameInput.value = activeBusinessName;
+  businessTypeSelect.setCustomValidity("");
+  businessNameInput.setCustomValidity("");
   isProfileReady = true;
   resetConversation({ announce: false });
 }
@@ -713,14 +729,15 @@ quickActionButtons.forEach((button) => {
 });
 
 profileForm.addEventListener("submit", applyBusinessProfile);
-businessTypeSelect.addEventListener("change", updateBusinessNameDefault);
+businessTypeSelect.addEventListener("change", updateProfileFormState);
+businessNameInput.addEventListener("input", updateProfileFormState);
 voiceInputButton.addEventListener("click", toggleVoiceInput);
 speakLatestButton.addEventListener("click", speakLatestAssistantMessage);
 themeToggle.addEventListener("click", toggleTheme);
 resetButton.addEventListener("click", () => resetConversation());
 
 initializeTheme();
-updateBusinessNameDefault();
+updateProfileFormState();
 updateProfileDisplay();
 initializeVoiceSupport();
 updateQuickActionState();
