@@ -44,6 +44,20 @@ def execute_booking(
         for slot in REQUIRED_BOOKING_SLOTS
         if not _clean_slot_value(extracted_slots.get(slot))
     ]
+    schedule_violation = _schedule_violation(
+        runtime.context.business_profile,
+        _clean_slot_value(extracted_slots.get("date")),
+        _clean_slot_value(extracted_slots.get("time")),
+    )
+    if schedule_violation is not None:
+        return {
+            "workflow_stage": "appointment_outside_business_hours",
+            "missing_booking_slots": [],
+            "booking_result": None,
+            "schedule_violation": schedule_violation,
+            "business_hours": runtime.context.business_profile.booking_hours.description,
+        }
+
     if missing_slots:
         return {
             "workflow_stage": "booking_information_required",
@@ -65,20 +79,6 @@ def execute_booking(
             "supported_services": supported_service_names(
                 runtime.context.business_profile
             ),
-        }
-
-    schedule_violation = _schedule_violation(
-        runtime.context.business_profile,
-        extracted_slots["date"],
-        extracted_slots["time"],
-    )
-    if schedule_violation is not None:
-        return {
-            "workflow_stage": "appointment_outside_business_hours",
-            "missing_booking_slots": [],
-            "booking_result": None,
-            "schedule_violation": schedule_violation,
-            "business_hours": runtime.context.business_profile.booking_hours.description,
         }
 
     if runtime.context.booking_tool is None:
