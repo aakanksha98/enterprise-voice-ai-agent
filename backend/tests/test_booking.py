@@ -262,3 +262,23 @@ def test_booking_outside_business_hours_skips_tool_invocation() -> None:
         "Monday through Friday from 8 AM to 5 PM, and Saturday from 9 AM to 1 PM. "
         "Please choose another time within business hours."
     )
+
+
+def test_booking_outside_business_hours_is_checked_before_missing_service() -> None:
+    tool_calls: list[dict[str, str]] = []
+    context = AgentContext(
+        planner=RunnableLambda(
+            lambda _: booking_decision(service=None, date="Sunday", time="4 PM")
+        ),
+        booking_tool=create_recording_booking_tool(tool_calls),
+    )
+
+    result = agent_graph.invoke(
+        {"user_message": "I would like to book for Sunday 4 PM"},
+        context=context,
+    )
+
+    assert tool_calls == []
+    assert result["workflow_stage"] == "appointment_outside_business_hours"
+    assert result["missing_booking_slots"] == []
+    assert result["booking_result"] is None
