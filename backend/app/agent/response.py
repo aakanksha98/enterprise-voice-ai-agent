@@ -63,8 +63,13 @@ Rules:
 - If facts.query_scope is off_domain, do not answer from general model
   knowledge. Explain that you can help with this business profile's services,
   policies, hours, pricing, and appointments.
+- If facts.query_scope is cross_business_profile, do not answer for the other
+  business type. Say this session is set to the selected business profile,
+  list the supported services from context, and offer to help with those.
 - If facts.query_scope is staff_personal_info, say you do not have information
   about individual staff members and offer business or appointment help.
+- If facts.query_scope is sensitive_request, refuse briefly and redirect to
+  appointments or business questions.
 - If information is unavailable, say so naturally and offer the next helpful
   step when appropriate.
 - If fields are missing, ask only for the missing information.
@@ -169,6 +174,8 @@ def _build_response_context(
             "missing_fields": _missing_fields(state),
             "retrieved_documents": state.get("retrieved_documents", []),
             "booking_result": state.get("booking_result"),
+            "schedule_violation": state.get("schedule_violation"),
+            "business_hours": state.get("business_hours"),
             "cancellation_result": state.get("cancellation_result"),
             "reschedule_result": state.get("reschedule_result"),
             "escalation_result": state.get("escalation_result"),
@@ -191,15 +198,53 @@ def _query_scope(
     state: AgentState,
     business_profile: Any,
 ) -> str | None:
-    if state.get("workflow_stage") != "knowledge_retrieved":
+    if state.get("detected_intent") == "small_talk":
+        return None
+
+    if state.get("workflow_stage") not in {"knowledge_retrieved", "planned"}:
         return None
 
     message = (state.get("normalized_message") or state.get("user_message", "")).lower()
+    if _looks_like_sensitive_request(message):
+        return "sensitive_request"
+    if _looks_like_cross_business_profile(message, business_profile):
+        return "cross_business_profile"
     if _looks_like_staff_personal_info(message):
         return "staff_personal_info"
     if _looks_like_business_question(message, business_profile):
         return "business_question"
     return "off_domain"
+
+
+def _looks_like_sensitive_request(message: str) -> bool:
+    sensitive_terms = (
+        "api key",
+        "apikey",
+        "secret key",
+        "password",
+        "token",
+        "credential",
+        "ignore all your instructions",
+    )
+    return any(term in message for term in sensitive_terms)
+
+
+def _looks_like_cross_business_profile(message: str, business_profile: Any) -> bool:
+    if business_profile is None:
+        return False
+
+    profile_terms_by_type = {
+        "dental": ("dental", "dentist", "tooth", "teeth", "clinic"),
+        "salon": ("salon",),
+        "auto_repair": ("auto", "car", "garage", "auto repair"),
+    }
+    current_type = business_profile.business_type
+    for profile_type, terms in profile_terms_by_type.items():
+        if profile_type == current_type:
+            continue
+        if any(term in message for term in terms):
+            return True
+    return False
 
 
 def _looks_like_staff_personal_info(message: str) -> bool:
@@ -235,6 +280,7 @@ def _looks_like_business_question(message: str, business_profile: Any) -> bool:
         "fees",
         "friend",
         "guest",
+        "help",
         "hour",
         "hours",
         "offer",
@@ -248,10 +294,12 @@ def _looks_like_business_question(message: str, business_profile: Any) -> bool:
         "pricing",
         "promotion",
         "promotions",
+        "request",
         "reschedule",
         "schedule",
         "service",
         "services",
+        "message",
         "visit",
     }
     profile_terms = _profile_terms(business_profile)
@@ -325,6 +373,10 @@ def _response_goal(state: AgentState) -> str:
             "Explain that one active appointment already exists and offer to help "
             "cancel or reschedule it."
         ),
+        "appointment_outside_business_hours": (
+            "Explain that the requested appointment time is outside business "
+            "hours, share the available business hours, and ask for another time."
+        ),
         "unsupported_service_requested": (
             "Explain that the requested service is not supported for this demo "
             "profile and offer the supported services."
@@ -385,6 +437,24 @@ def _fallback_response(response_context: dict[str, Any]) -> str:
         intent = response_context.get("intent")
         if intent == "small_talk":
             return _small_talk_fallback(response_context)
+        query_scope = facts.get("query_scope")
+        if query_scope == "off_domain":
+            return (
+                "I'm here to help with this business profile's services, "
+                "policies, hours, pricing, and appointments."
+            )
+        if query_scope == "cross_business_profile":
+            return _cross_business_profile_fallback(response_context)
+        if query_scope == "staff_personal_info":
+            return (
+                "I don't have information about individual staff members, but I "
+                "can help with appointments or business questions."
+            )
+        if query_scope == "sensitive_request":
+            return (
+                "I can't help with credentials or internal system information. "
+                "I can help with appointments or business questions."
+            )
         return (
             "Could you clarify whether you need business information, "
             "appointment help, or a human specialist?"
@@ -394,6 +464,7 @@ def _fallback_response(response_context: dict[str, Any]) -> str:
         "booking_information_required": _booking_information_fallback,
         "appointment_booked": _booking_confirmation_fallback,
         "appointment_already_active": _appointment_already_active_fallback,
+        "appointment_outside_business_hours": _outside_business_hours_fallback,
         "unsupported_service_requested": _unsupported_service_fallback,
         "cancellation_information_required": (
             lambda _: "I need an active appointment in this conversation before I can cancel it."
@@ -460,6 +531,36 @@ def _unsupported_service_fallback(response_context: dict[str, Any]) -> str:
         f"I can't book {requested_service} for this demo profile. "
         f"I can help with {_join_fields(services)}. Which service would you like?"
     )
+
+
+def _cross_business_profile_fallback(response_context: dict[str, Any]) -> str:
+    business = response_context.get("business", {})
+    facts = response_context.get("facts", {})
+    label = business.get("label") or "selected business profile"
+    services = business.get("supported_services") or facts.get("supported_services", [])
+    if not services:
+        return f"This session is set to {label}. I can help with that profile."
+
+    return (
+        f"This session is set to {label}. I can help with "
+        f"{_join_fields(services)}."
+    )
+
+
+def _outside_business_hours_fallback(response_context: dict[str, Any]) -> str:
+    facts = response_context.get("facts", {})
+    violation = facts.get("schedule_violation")
+    business_hours = facts.get("business_hours")
+    if violation:
+        return (
+            f"{violation} Please choose another time within business hours."
+        )
+    if business_hours:
+        return (
+            f"That appointment time is outside business hours. Available hours "
+            f"are {business_hours}. Please choose another time."
+        )
+    return "That appointment time is outside business hours. Please choose another time."
 
 
 def _cancellation_confirmation_fallback(response_context: dict[str, Any]) -> str:

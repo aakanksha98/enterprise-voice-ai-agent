@@ -102,3 +102,71 @@ def test_response_generator_receives_tool_result_context() -> None:
         "time": "4 PM",
         "status": "confirmed",
     }
+
+
+def test_response_generator_receives_off_domain_scope_for_general_questions() -> None:
+    response_inputs: list[dict[str, str]] = []
+
+    decision = PlannerDecision(
+        intent="clarification",
+        confidence=0.7,
+        small_talk_topic=None,
+        slots=PlannerSlots(
+            service=None,
+            date=None,
+            time=None,
+            escalation_reason=None,
+        ),
+    )
+    context = AgentContext(
+        planner=RunnableLambda(lambda _: decision),
+        response_generator=RunnableLambda(
+            lambda response_input: (
+                response_inputs.append(response_input)
+                or "I can help with this business profile's services and appointments."
+            )
+        ),
+    )
+
+    agent_graph.invoke(
+        {"user_message": "What does a giraffe say?"},
+        context=context,
+    )
+
+    response_context = json.loads(response_inputs[0]["response_context"])
+    assert response_context["workflow_stage"] == "planned"
+    assert response_context["facts"]["query_scope"] == "off_domain"
+
+
+def test_response_generator_receives_cross_business_scope() -> None:
+    response_inputs: list[dict[str, str]] = []
+
+    decision = PlannerDecision(
+        intent="clarification",
+        confidence=0.72,
+        small_talk_topic=None,
+        slots=PlannerSlots(
+            service=None,
+            date=None,
+            time=None,
+            escalation_reason=None,
+        ),
+    )
+    context = AgentContext(
+        planner=RunnableLambda(lambda _: decision),
+        response_generator=RunnableLambda(
+            lambda response_input: (
+                response_inputs.append(response_input)
+                or "This session is set to Dental Clinic. I can help with dental services."
+            )
+        ),
+    )
+
+    agent_graph.invoke(
+        {"user_message": "Salon services"},
+        context=context,
+    )
+
+    response_context = json.loads(response_inputs[0]["response_context"])
+    assert response_context["business"]["label"] == "Dental Clinic"
+    assert response_context["facts"]["query_scope"] == "cross_business_profile"

@@ -231,3 +231,34 @@ def test_unsupported_service_skips_booking_tool() -> None:
         "dental cleaning, dental exam, teeth whitening, filling, and "
         "emergency dental visit. Which service would you like?"
     )
+
+
+def test_booking_outside_business_hours_skips_tool_invocation() -> None:
+    tool_calls: list[dict[str, str]] = []
+    context = AgentContext(
+        planner=RunnableLambda(
+            lambda _: booking_decision(date="Sunday", time="4 PM")
+        ),
+        booking_tool=create_recording_booking_tool(tool_calls),
+    )
+
+    result = agent_graph.invoke(
+        {"user_message": "Book a dental cleaning Sunday at 4 PM"},
+        context=context,
+    )
+
+    assert tool_calls == []
+    assert result["workflow_stage"] == "appointment_outside_business_hours"
+    assert result["booking_result"] is None
+    assert result["schedule_violation"] == (
+        "Sunday at 4 PM is outside business hours. Available booking hours are "
+        "Monday through Friday from 8 AM to 5 PM, and Saturday from 9 AM to 1 PM."
+    )
+    assert result["business_hours"] == (
+        "Monday through Friday from 8 AM to 5 PM, and Saturday from 9 AM to 1 PM"
+    )
+    assert result["final_response"] == (
+        "Sunday at 4 PM is outside business hours. Available booking hours are "
+        "Monday through Friday from 8 AM to 5 PM, and Saturday from 9 AM to 1 PM. "
+        "Please choose another time within business hours."
+    )

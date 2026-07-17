@@ -88,6 +88,10 @@ function updateComposerState() {
   const messageLength = messageInput.value.length;
   const hasMessage = messageInput.value.trim().length > 0;
 
+  messageInput.disabled = !isProfileReady;
+  messageInput.placeholder = isProfileReady
+    ? "Message the reception desk"
+    : "Select business type and enter business name first";
   sendButton.disabled =
     !isProfileReady ||
     !hasMessage ||

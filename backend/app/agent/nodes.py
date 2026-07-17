@@ -4,6 +4,7 @@ from langchain_core.documents import Document
 from langgraph.runtime import Runtime
 
 from backend.app.agent.context import AgentContext
+from backend.app.agent.planner import PlannerDecision, PlannerSlots
 from backend.app.agent.state import (
     AgentState,
     AgentStateUpdate,
@@ -79,6 +80,8 @@ def _reset_turn_outputs() -> AgentStateUpdate:
         "booking_result": None,
         "unsupported_service": None,
         "supported_services": [],
+        "schedule_violation": None,
+        "business_hours": None,
         "missing_cancellation_slots": [],
         "cancellation_result": None,
         "missing_reschedule_slots": [],
@@ -108,6 +111,7 @@ def plan_request(
             ),
         }
     )
+    decision = _apply_policy_overrides(decision, normalized_message)
     current_slots = cast(
         ExtractedSlots,
         decision.slots.model_dump(exclude_none=True),
@@ -208,3 +212,44 @@ def _merge_follow_up_slots(
         ExtractedSlots,
         {**state.get("extracted_slots", {}), **current_slots},
     )
+
+
+def _apply_policy_overrides(
+    decision: PlannerDecision,
+    normalized_message: str,
+) -> PlannerDecision:
+    if _is_customer_dissatisfied(normalized_message):
+        return PlannerDecision(
+            intent="human_escalation",
+            confidence=max(decision.confidence, 0.99),
+            small_talk_topic=None,
+            slots=PlannerSlots(
+                service=None,
+                date=None,
+                time=None,
+                escalation_reason=normalized_message,
+            ),
+        )
+
+    return decision
+
+
+def _is_customer_dissatisfied(message: str) -> bool:
+    normalized = message.lower()
+    dissatisfaction_phrases = (
+        "not satisfied",
+        "unsatisfied",
+        "unhappy",
+        "not happy",
+        "bad experience",
+        "poor service",
+        "complaint",
+        "complain",
+        "not acceptable",
+        "unacceptable",
+        "not resolved",
+        "unresolved",
+        "bad resolution",
+        "your resolution",
+    )
+    return any(phrase in normalized for phrase in dissatisfaction_phrases)

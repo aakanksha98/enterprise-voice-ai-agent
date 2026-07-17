@@ -73,7 +73,9 @@ Choose exactly one route:
 - book_appointment: create a new appointment.
 - cancel_appointment: cancel an existing appointment.
 - reschedule_appointment: move an existing appointment.
-- human_escalation: the user explicitly asks for a person or human handoff.
+- human_escalation: the user explicitly asks for a person or human handoff,
+  or says they are dissatisfied, unhappy, want to complain, or the resolution
+  was not acceptable.
 - clarification: the request is unclear or no single route can be selected.
 
 For small_talk, set small_talk_topic to greeting, assistant_identity,
