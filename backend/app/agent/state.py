@@ -34,6 +34,7 @@ WorkflowStage = Literal[
     "booking_information_required",
     "appointment_booked",
     "appointment_already_active",
+    "appointment_outside_business_hours",
     "unsupported_service_requested",
     "cancellation_information_required",
     "appointment_cancelled",
@@ -117,6 +118,8 @@ class AgentState(TypedDict):
     booking_result: NotRequired[BookingResult | None]
     unsupported_service: NotRequired[str | None]
     supported_services: NotRequired[list[str]]
+    schedule_violation: NotRequired[str | None]
+    business_hours: NotRequired[str | None]
     active_appointment: NotRequired[ActiveAppointment | None]
     missing_cancellation_slots: NotRequired[list[CancellationSlot]]
     cancellation_result: NotRequired[CancellationResult | None]
@@ -143,6 +146,8 @@ class AgentStateUpdate(TypedDict, total=False):
     booking_result: BookingResult | None
     unsupported_service: str | None
     supported_services: list[str]
+    schedule_violation: str | None
+    business_hours: str | None
     active_appointment: ActiveAppointment | None
     missing_cancellation_slots: list[CancellationSlot]
     cancellation_result: CancellationResult | None

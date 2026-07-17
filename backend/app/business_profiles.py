@@ -15,11 +15,18 @@ class ServiceCatalogItem:
 
 
 @dataclass(frozen=True)
+class BusinessHours:
+    description: str
+    weekly_windows: tuple[tuple[int, int, int], ...]
+
+
+@dataclass(frozen=True)
 class BusinessProfile:
     business_type: BusinessType
     label: str
     example_business_name: str
     services: tuple[ServiceCatalogItem, ...]
+    booking_hours: BusinessHours
 
 
 BUSINESS_NAME_MAX_LENGTH = 80
@@ -41,6 +48,20 @@ BUSINESS_PROFILES: dict[BusinessType, BusinessProfile] = {
                 ("emergency visit", "tooth pain visit"),
             ),
         ),
+        booking_hours=BusinessHours(
+            description=(
+                "Monday through Friday from 8 AM to 5 PM, and Saturday "
+                "from 9 AM to 1 PM"
+            ),
+            weekly_windows=(
+                (0, 8 * 60, 17 * 60),
+                (1, 8 * 60, 17 * 60),
+                (2, 8 * 60, 17 * 60),
+                (3, 8 * 60, 17 * 60),
+                (4, 8 * 60, 17 * 60),
+                (5, 9 * 60, 13 * 60),
+            ),
+        ),
     ),
     "salon": BusinessProfile(
         business_type="salon",
@@ -53,6 +74,16 @@ BUSINESS_PROFILES: dict[BusinessType, BusinessProfile] = {
             ServiceCatalogItem("manicure", ("nails", "basic manicure")),
             ServiceCatalogItem("facial", ("skin facial",)),
         ),
+        booking_hours=BusinessHours(
+            description="Tuesday through Saturday from 10 AM to 7 PM",
+            weekly_windows=(
+                (1, 10 * 60, 19 * 60),
+                (2, 10 * 60, 19 * 60),
+                (3, 10 * 60, 19 * 60),
+                (4, 10 * 60, 19 * 60),
+                (5, 10 * 60, 19 * 60),
+            ),
+        ),
     ),
     "auto_repair": BusinessProfile(
         business_type="auto_repair",
@@ -64,6 +95,20 @@ BUSINESS_PROFILES: dict[BusinessType, BusinessProfile] = {
             ServiceCatalogItem("tire rotation", ("rotate tires", "tyre rotation")),
             ServiceCatalogItem("battery diagnostic", ("battery check",)),
             ServiceCatalogItem("engine diagnostic", ("check engine light", "diagnostic")),
+        ),
+        booking_hours=BusinessHours(
+            description=(
+                "Monday through Friday from 7:30 AM to 6 PM, and Saturday "
+                "from 8 AM to 2 PM"
+            ),
+            weekly_windows=(
+                (0, 7 * 60 + 30, 18 * 60),
+                (1, 7 * 60 + 30, 18 * 60),
+                (2, 7 * 60 + 30, 18 * 60),
+                (3, 7 * 60 + 30, 18 * 60),
+                (4, 7 * 60 + 30, 18 * 60),
+                (5, 8 * 60, 14 * 60),
+            ),
         ),
     ),
 }

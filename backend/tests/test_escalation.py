@@ -128,6 +128,34 @@ def test_escalation_route_runs_after_planning() -> None:
     ]
 
 
+def test_dissatisfaction_overrides_planner_to_escalation() -> None:
+    tool_calls: list[dict[str, str | None]] = []
+    planner_decision = PlannerDecision(
+        intent="clarification",
+        confidence=0.71,
+        small_talk_topic=None,
+        slots=PlannerSlots(
+            service=None,
+            date=None,
+            time=None,
+            escalation_reason=None,
+        ),
+    )
+    context = AgentContext(
+        planner=RunnableLambda(lambda _: planner_decision),
+        escalation_tool=create_recording_escalation_tool(tool_calls),
+    )
+
+    result = agent_graph.invoke(
+        {"user_message": "I am not satisfied with your resolution"},
+        context=context,
+    )
+
+    assert result["detected_intent"] == "human_escalation"
+    assert result["workflow_stage"] == "human_escalation_queued"
+    assert tool_calls == [{"reason": "I am not satisfied with your resolution"}]
+
+
 def test_escalation_node_rejects_invalid_tool_result() -> None:
     context = AgentContext(
         planner=RunnableLambda(lambda _: escalation_decision()),
