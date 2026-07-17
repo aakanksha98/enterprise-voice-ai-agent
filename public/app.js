@@ -9,6 +9,7 @@ const sessionBusiness = document.querySelector("[data-session-business]");
 const sessionIntent = document.querySelector("[data-session-intent]");
 const announcement = document.querySelector("[data-announcement]");
 const resetButton = document.querySelector("[data-reset]");
+const themeToggle = document.querySelector("[data-theme-toggle]");
 const profileForm = document.querySelector("[data-profile-form]");
 const businessTypeSelect = document.querySelector("[data-business-type]");
 const businessNameInput = document.querySelector("[data-business-name]");
@@ -36,6 +37,7 @@ const BUSINESS_PROFILES = {
     defaultName: "TurboFix Garage",
   },
 };
+const THEME_STORAGE_KEY = "enterprise-voice-theme";
 const SpeechRecognitionConstructor =
   window.SpeechRecognition || window.webkitSpeechRecognition;
 
@@ -58,6 +60,23 @@ let activeBusinessName = BUSINESS_PROFILES[activeBusinessType].defaultName;
 const supportsSpeechSynthesis =
   typeof window.speechSynthesis !== "undefined" &&
   typeof window.SpeechSynthesisUtterance === "function";
+
+function applyTheme(theme) {
+  const isDark = theme === "dark";
+  document.body.classList.toggle("theme-dark", isDark);
+  themeToggle.setAttribute("aria-pressed", String(isDark));
+  themeToggle.textContent = isDark ? "Light mode" : "Dark mode";
+}
+
+function initializeTheme() {
+  applyTheme(localStorage.getItem(THEME_STORAGE_KEY) === "dark" ? "dark" : "light");
+}
+
+function toggleTheme() {
+  const nextTheme = document.body.classList.contains("theme-dark") ? "light" : "dark";
+  localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
+  applyTheme(nextTheme);
+}
 
 function resizeMessageInput() {
   messageInput.style.height = "auto";
@@ -697,8 +716,10 @@ profileForm.addEventListener("submit", applyBusinessProfile);
 businessTypeSelect.addEventListener("change", updateBusinessNameDefault);
 voiceInputButton.addEventListener("click", toggleVoiceInput);
 speakLatestButton.addEventListener("click", speakLatestAssistantMessage);
+themeToggle.addEventListener("click", toggleTheme);
 resetButton.addEventListener("click", () => resetConversation());
 
+initializeTheme();
 updateBusinessNameDefault();
 updateProfileDisplay();
 initializeVoiceSupport();
