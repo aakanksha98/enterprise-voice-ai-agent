@@ -54,7 +54,17 @@ Rules:
   details, availability, or contact details.
 - The business name is personalization only. Do not imply prices, policies,
   services, hours, or retrieved facts are specific to the custom business name.
-  For factual business answers, state the fact directly.
+  For factual business answers, state the fact directly without naming the
+  custom business.
+- For knowledge retrieval replies, retrieved_documents are the only evidence.
+  Answer only when the retrieved documents directly support the user's exact
+  question. If they do not, say the available business information does not
+  cover that and offer appointment or service help.
+- If facts.query_scope is off_domain, do not answer from general model
+  knowledge. Explain that you can help with this business profile's services,
+  policies, hours, pricing, and appointments.
+- If facts.query_scope is staff_personal_info, say you do not have information
+  about individual staff members and offer business or appointment help.
 - If information is unavailable, say so naturally and offer the next helpful
   step when appropriate.
 - If fields are missing, ask only for the missing information.
@@ -122,11 +132,16 @@ def _build_response_context(
 ) -> dict[str, Any]:
     agent_context = runtime.context
     business_profile = agent_context.business_profile if agent_context else None
-    business_name = (
+    workflow_stage = state.get("workflow_stage")
+    provided_business_name = (
         agent_context.business_name
         if agent_context and agent_context.business_name
-        else "this business"
+        else None
     )
+    business_name = provided_business_name or "this business"
+    if workflow_stage == "knowledge_retrieved" and provided_business_name:
+        business_name = "this business"
+
     business = {
         "name": business_name,
         "type": business_profile.business_type if business_profile else None,
@@ -144,9 +159,11 @@ def _build_response_context(
         "business": business,
         "user_message": state.get("normalized_message") or state.get("user_message", ""),
         "intent": state.get("detected_intent"),
-        "workflow_stage": state.get("workflow_stage"),
+        "workflow_stage": workflow_stage,
         "response_goal": _response_goal(state),
         "facts": {
+            "query_scope": _query_scope(state, business_profile),
+            "retrieval_query": state.get("retrieval_query"),
             "small_talk_topic": state.get("small_talk_topic"),
             "extracted_slots": dict(state.get("extracted_slots", {})),
             "missing_fields": _missing_fields(state),
@@ -168,6 +185,110 @@ def _build_response_context(
             "do_not_override_workflow_stage": True,
         },
     }
+
+
+def _query_scope(
+    state: AgentState,
+    business_profile: Any,
+) -> str | None:
+    if state.get("workflow_stage") != "knowledge_retrieved":
+        return None
+
+    message = (state.get("normalized_message") or state.get("user_message", "")).lower()
+    if _looks_like_staff_personal_info(message):
+        return "staff_personal_info"
+    if _looks_like_business_question(message, business_profile):
+        return "business_question"
+    return "off_domain"
+
+
+def _looks_like_staff_personal_info(message: str) -> bool:
+    staff_terms = ("front desk", "receptionist", "staff", "employee", "manager")
+    personal_terms = ("know ", "who is", "who's", "karen", "person")
+    return any(term in message for term in staff_terms) and any(
+        term in message for term in personal_terms
+    )
+
+
+def _looks_like_business_question(message: str, business_profile: Any) -> bool:
+    business_terms = {
+        "appointment",
+        "appointments",
+        "available",
+        "availability",
+        "book",
+        "booking",
+        "bring",
+        "cancel",
+        "cancellation",
+        "charge",
+        "charges",
+        "close",
+        "closed",
+        "cost",
+        "costs",
+        "deal",
+        "deals",
+        "discount",
+        "discounts",
+        "fee",
+        "fees",
+        "friend",
+        "guest",
+        "hour",
+        "hours",
+        "offer",
+        "offers",
+        "open",
+        "payment",
+        "policy",
+        "policies",
+        "price",
+        "prices",
+        "pricing",
+        "promotion",
+        "promotions",
+        "reschedule",
+        "schedule",
+        "service",
+        "services",
+        "visit",
+    }
+    profile_terms = _profile_terms(business_profile)
+    return any(term in message for term in business_terms | profile_terms)
+
+
+def _profile_terms(business_profile: Any) -> set[str]:
+    if business_profile is None:
+        return set()
+
+    service_terms: set[str] = set()
+    for service_name in supported_service_names(business_profile):
+        service_terms.update(service_name.lower().split())
+
+    type_terms = {
+        "auto",
+        "brake",
+        "car",
+        "cleaning",
+        "color",
+        "dental",
+        "dentist",
+        "engine",
+        "exam",
+        "filling",
+        "hair",
+        "haircut",
+        "manicure",
+        "oil",
+        "repair",
+        "salon",
+        "teeth",
+        "tire",
+        "tooth",
+        "whitening",
+    }
+    return service_terms | type_terms
 
 
 def _response_goal(state: AgentState) -> str:
